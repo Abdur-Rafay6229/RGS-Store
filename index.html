@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Rajpoot General Store - Customer & Supplier Bills Manager">
+<meta name="theme-color" content="#1a73e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RGS Store">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png" type="image/png">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Rajpoot General Store</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; -webkit-tap-highlight-color:transparent; }
+  body { background:#f0f2f5; max-width:600px; margin:0 auto; padding:60px 15px 80px; -webkit-text-size-adjust:100%; }
+  body.urdu { font-size:16px; }
+  .urdu .lang-btn { right:auto; left:10px; }
+  .header { background:#1a73e8; color:#fff; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px; }
+  .header h1 { font-size:20px; }
+  .header p { font-size:12px; opacity:.9; }
+  .summary { display:flex; gap:10px; margin-bottom:15px; }
+  .summary div { flex:1; padding:10px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); background:#fff; }
+  .summary b { display:block; font-size:18px; color:#1a73e8; }
+  .summary span { display:block; font-size:12px; color:#666; margin-bottom:6px; }
+  .btn { background:#1a73e8; color:#fff; border:none; padding:12px 18px; border-radius:8px; font-size:15px; cursor:pointer; width:100%; margin:5px 0; }
+  .btn.green { background:#25d366; }
+  .btn.red { background:#dc3545; }
+  .btn.dark { background:#202124; }
+  .btn.gray { background:#5f6368; }
+  .btn.small { width:auto; padding:6px 12px; font-size:13px; }
+  .lang-btn { position:fixed; top:10px; right:10px; z-index:99; width:auto; padding:8px 14px; }
+  .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); cursor:pointer; }
+  .card h3 { font-size:16px; margin-bottom:5px; }
+  .card .meta { font-size:12px; color:#666; margin-bottom:5px; }
+  .card .row { display:flex; justify-content:space-between; gap:8px; font-size:14px; align-items:center; }
+  .pending { color:#dc3545; font-weight:bold; }
+  .paid { color:#28a745; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; color:#fff; }
+  .cash { background:#28a745; } .online { background:#1a73e8; } .credit { background:#dc3545; }
+  label { display:block; font-size:13px; color:#333; margin:8px 0 3px; }
+  input, select { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:15px; background:#fff; }
+  .search { margin-bottom:10px; }
+  .item-row { display:flex; gap:5px; margin-bottom:5px; }
+  .item-row input { font-size:13px; padding:8px; }
+  .item-row input:nth-child(1){flex:3;} .item-row input:nth-child(2){flex:1;} .item-row input:nth-child(3){flex:2;}
+  .item-row button { flex:0 0 auto; }
+  .hidden { display:none !important; }
+  .total-box { background:#e8f0fe; padding:10px; border-radius:8px; margin:10px 0; font-weight:bold; }
+  .pay-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:3px 0; }
+  .pay-row .del-pay { background:none; border:none; color:#dc3545; cursor:pointer; font-size:14px; padding:0 5px; }
+
+  /* ===== LOCK / SETUP / LOGIN ===== */
+  .lock-wrap { min-height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; }
+  .lock-icon { font-size:60px; margin-bottom:15px; }
+  .lock-title { font-size:20px; font-weight:bold; color:#1a73e8; margin-bottom:8px; }
+  .lock-sub { font-size:13px; color:#666; margin-bottom:20px; }
+  .pin-display { display:flex; gap:12px; justify-content:center; margin:20px 0; }
+  .pin-dot { width:16px; height:16px; border-radius:50%; background:#ddd; transition:.2s; }
+  .pin-dot.filled { background:#1a73e8; transform:scale(1.15); }
+  .keypad { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:280px; margin:0 auto; }
+  .keypad button {
+    padding:18px 0; font-size:22px; font-weight:bold; border:none; border-radius:50%;
+    background:#fff; box-shadow:0 2px 5px rgba(0,0,0,.1); cursor:pointer;
+    width:70px; height:70px; margin:0 auto;
+  }
+  .keypad button:active { background:#e8f0fe; }
+  .keypad button.wide { font-size:14px; }
+  .link-btn { background:none; border:none; color:#1a73e8; font-size:14px; text-decoration:underline; cursor:pointer; margin-top:15px; }
+  .error-msg { color:#dc3545; font-size:13px; margin:10px 0; min-height:18px; }
+  .success-msg { color:#28a745; font-size:13px; margin:10px 0; }
+  .bio-btn { background:#202124; color:#fff; border:none; padding:15px; border-radius:50px; font-size:15px; cursor:pointer; margin:15px auto; display:flex; align-items:center; justify-content:center; gap:8px; width:auto; min-width:220px; }
+  .setup-box { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); width:100%; max-width:340px; }
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .status-dot.on { background:#28a745; } .status-dot.off { background:#dc3545; }
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP SCREEN (first time) ============ -->
+<div id="setupScreen" class="lock-wrap hidden">
+  <div class="setup-box">
+    <div class="lock-icon">🏪</div>
+    <div class="lock-title">Welcome to RGS Store</div>
+    <div class="lock-sub">Set a 4-digit PIN to protect your data</div>
+    <div class="pin-display" id="setupPinDisplay">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="error-msg" id="setupErr"></div>
+    <div class="keypad" id="setupKeypad"></div>
+    <button class="link-btn" onclick="skipSetup()">Skip for now</button>
+  </div>
+</div>
+
+<!-- ============ LOCK SCREEN ============ -->
+<div id="lockScreen" class="lock-wrap hidden">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title" id="lockTitle">Enter PIN</div>
+  <div class="lock-sub" id="lockSub">Unlock RGS Store</div>
+  <div class="pin-display" id="lockPinDisplay">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="error-msg" id="lockErr"></div>
+  <div class="keypad" id="lockKeypad"></div>
+  <button class="bio-btn hidden" id="bioUnlockBtn" onclick="tryBiometric()">👆 Unlock with Fingerprint / Face</button>
+</div>
+
+<!-- ============ LOGIN SCREEN (cloud) ============ -->
+<div id="loginScreen" class="lock-wrap hidden">
+  <div class="setup-box">
+    <div class="lock-icon">☁️</div>
+    <div class="lock-title">Sign in to Cloud</div>
+    <div class="lock-sub">Backup your data safely</div>
+    <label>Email</label>
+    <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div class="error-msg" id="loginErr"></div>
+    <button class="btn" onclick="doLogin()">Sign In</button>
+    <button class="btn gray" onclick="doSignup()">Create New Account</button>
+    <button class="link-btn" onclick="showList()">← Back to app</button>
+  </div>
+</div>
+
+<!-- ============ MAIN APP (existing screens) ============ -->
+<div id="listScreen">
+  <div class="header"><h1 id="t-store">Rajpoot General Store</h1><p id="t-sub">Customer Bills Manager</p></div>
+  <div class="summary">
+    <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
+    <div><span id="t-pending">Total Pending</span><b id="totalPending">0</b></div>
+  </div>
+  <button class="btn" onclick="newBill()">+ <span id="t-newbill">New Bill</span></button>
+  <button class="btn" onclick="showSupplierList()">🏭 <span id="t-suppliers">Suppliers</span></button>
+  <button class="btn dark" onclick="openSettings()">⚙️ <span id="t-settings">Settings</span></button>
+  <button class="btn dark hidden" id="installBtn" onclick="installApp()">⬇️ <span id="t-install">Install App</span></button>
+  <input id="billSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderList()">
+  <div id="billList"></div>
+</div>
+
+<div id="formScreen" class="hidden">
+  <div class="header"><h1 id="t-formtitle">New Bill</h1></div>
+  <label id="t-cname">Customer Name</label><input id="f-name" type="text" autocomplete="off">
+  <label id="t-bdate">Bill Date</label><input id="f-date" type="date">
+  <label id="t-ptype">Payment Type</label>
+  <select id="f-ptype">
+    <option id="t-ptcash" value="cash">Cash</option>
+    <option id="t-ptonline" value="online">Online</option>
+    <option id="t-ptcredit" value="credit">Credit</option>
+  </select>
+  <label id="t-items">Items (Name | Qty | Rate)</label>
+  <div id="itemsBox"></div>
+  <button class="btn small" onclick="addItemRow()">+ <span id="t-additem">Add Item</span></button>
+  <div class="total-box"><span id="t-total">Total</span>: Rs. <span id="f-total">0</span></div>
+  <div class="total-box hidden" id="f-already"><span id="t-already">Already Paid</span>: Rs. <span id="f-epaid">0</span></div>
+  <label id="t-apaid">Amount Paid</label><input id="f-paid" type="number" min="0" value="0" oninput="calcTotal()">
+  <label id="t-apdate">Payment Date</label><input id="f-paiddate" type="date">
+  <div class="total-box pending"><span id="t-tpending">Pending</span>: Rs. <span id="f-pending">0</span></div>
+  <button class="btn" onclick="saveBill()">💾 <span id="t-save">Save Bill</span></button>
+  <button class="btn" onclick="showList()">← <span id="t-back">Back</span></button>
+</div>
+
+<div id="detailScreen" class="hidden">
+  <div class="header"><h1 id="d-name"></h1></div>
+  <div class="card" id="d-details"></div>
+  <button class="btn" onclick="editBill()">✏️ <span id="t-editbill">Edit Bill</span></button>
+  <button class="btn" onclick="addMoreItems()">+ <span id="t-moreitems">Add More Items to This Bill</span></button>
+  <button class="btn green" onclick="addPayment()">💰 <span id="t-addpay">Add Payment (Khata Adjustment)</span></button>
+  <button class="btn green" onclick="shareWhatsApp()">📲 <span id="t-share">Share on WhatsApp</span></button>
+  <button class="btn red" onclick="deleteBill()">🗑 <span id="t-del">Delete Bill</span></button>
+  <button class="btn" onclick="showList()">← <span id="t-back2">Back</span></button>
+</div>
+
+<div id="supListScreen" class="hidden">
+  <div class="header"><h1 id="t-suphead">Supplier Management</h1><p id="t-supsub">Supplier Bills & Payments</p></div>
+  <div class="summary">
+    <div><span id="t-sups">Suppliers</span><b id="supCount">0</b></div>
+    <div><span id="t-supdue">Total Dues</span><b id="totalDue">0</b></div>
+  </div>
+  <button class="btn" onclick="newSupBill()">+ <span id="t-newsupbill">New Supplier Bill</span></button>
+  <input id="supSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderSupplierList()">
+  <div id="supList"></div>
+  <button class="btn" onclick="showList()">← <span id="t-custbills">Customer Bills</span></button>
+</div>
+
+<div id="supFormScreen" class="hidden">
+  <div class="header"><h1 id="t-supformtitle">New Supplier Bill</h1></div>
+  <label id="t-supname">Supplier Name</label><input id="s-name" type="text" autocomplete="off">
+  <label id="t-supbdate">Bill Date</label><input id="s-date" type="date">
+  <label id="t-supdesc">Description / Invoice No.</label><input id="s-desc" type="text" autocomplete="off">
+  <label id="t-supamount">Bill Amount (Rs.)</label><input id="s-amount" type="number" min="0" oninput="supCalc()">
+  <div class="total-box hidden" id="s-already"><span id="t-already2">Already Paid</span>: Rs. <span id="s-epaid">0</span></div>
+  <label id="t-suppaidamt">Amount Paid Now (Rs.)</label><input id="s-paid" type="number" min="0" value="0" oninput="supCalc()">
+  <label id="t-suppaydate">Payment Date</label><input id="s-paiddate" type="date">
+  <div class="total-box"><span id="t-suptotal">Total</span>: Rs. <span id="s-total">0</span></div>
+  <div class="total-box pending"><span id="t-supdue2">Dues (Hum ne dena hai)</span>: Rs. <span id="s-pending">0</span></div>
+  <button class="btn" onclick="saveSupBill()">💾 <span id="t-supsave">Save Supplier Bill</span></button>
+  <button class="btn" onclick="showSupplierList()">← <span id="t-supback">Back</span></button>
+</div>
+
+<div id="supDetailScreen" class="hidden">
+  <div class="header"><h1 id="sd-name"></h1></div>
+  <div class="card" id="sd-details"></div>
+  <button class="btn" onclick="editSupBill()">✏️ <span id="t-editsup">Edit Supplier Bill</span></button>
+  <button class="btn green" onclick="addSupPayment()">💰 <span id="t-supaddpay">Pay to Supplier</span></button>
+  <button class="btn green" onclick="shareSupWhatsApp()">📲 <span id="t-supshare">Share on WhatsApp</span></button>
+  <button class="btn red" onclick="deleteSupBill()">🗑 <span id="t-supdel">Delete Bill</span></button>
+  <button class="btn" onclick="showSupplierList()">← <span id="t-supback2">Back</span></button>
+</div>
+
+<!-- ============ SETTINGS SCREEN (new) ============ -->
+<div id="settingsScreen" class="hidden">
+  <div class="header"><h1>⚙️ Settings</h1></div>
+
+  <div class="card" style="cursor:default">
+    <h3>🔒 App Lock</h3>
+    <div class="row" style="margin-top:8px"><span>PIN Lock</span><span id="pinStatus">—</span></div>
+    <div class="row"><span>Fingerprint / Face</span><span id="bioStatus">—</span></div>
+    <button class="btn small" style="margin-top:10px" onclick="changePin()">Change PIN</button>
+    <button class="btn small" style="margin-top:5px" onclick="toggleBiometric()">Toggle Biometric</button>
+  </div>
+
+  <div class="card" style="cursor:default">
+    <h3>☁️ Cloud Backup</h3>
+    <div class="row" style="margin-top:8px"><span>Status</span><span id="cloudStatus">Not signed in</span></div>
+    <div class="row"><span>Last sync</span><span id="lastSync">—</span></div>
+    <button class="btn small" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign In</button>
+    <button class="btn small green" style="margin-top:5px hidden" id="syncBtn" onclick="syncNow()">Sync Now</button>
+  </div>
+
+  <div class="card" style="cursor:default">
+    <h3>📤 Data</h3>
+    <button class="btn small" style="margin-top:10px" onclick="exportData()">Export Backup (JSON)</button>
+    <button class="btn small gray" style="margin-top:5px" onclick="document.getElementById('importFile').click()">Import Backup</button>
+    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+  </div>
+
+  <button class="btn" onclick="showList()">← Back to App</button>
+</div>
+
+<!-- ============ FIREBASE SDK ============ -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+/* =========================================================
+   🔥 FIREBASE CONFIG — apni values yahan paste karo
+   (Setup steps neeche diye hain)
+========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
+  authDomain: "rgs-store-99c55.firebaseapp.com",
+  projectId: "rgs-store-99c55",
+  storageBucket: "rgs-store-99c55.firebasestorage.app",
+  messagingSenderId: "955139680771",
+  appId: "1:955139680771:web:bc42dc095c47ff486dfc36",
+  measurementId: "G-RCPTE7RXDB"
+};
+
+let firebaseReady = false;
+let fbAuth = null, fbDb = null;
+try {
+  if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
+    firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    firebaseReady = true;
+  }
+} catch (e) { console.warn('Firebase init failed:', e); }
+
+/* =========================================================
+   🔐 PIN + BIOMETRIC SECURITY
+========================================================= */
+const PIN_KEY = 'rgs_pin_hash';
+const PIN_SALT = 'rgs_v1_salt_2024';
+const BIO_CRED_KEY = 'rgs_biometric_cred';
+const BIO_ENABLED_KEY = 'rgs_biometric_enabled';
+
+async function hashPin(pin) {
+  const buf = new TextEncoder().encode(String(pin) + PIN_SALT);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hasPIN() { return !!localStorage.getItem(PIN_KEY); }
+function isBioEnabled() { return localStorage.getItem(BIO_ENABLED_KEY) === '1'; }
+function hasBioCred() { return !!localStorage.getItem(BIO_CRED_KEY); }
+
+/* ---- PIN keypad builder ---- */
+function buildKeypad(containerId, onDigit, onBack) {
+  const box = document.getElementById(containerId);
+  box.innerHTML = '';
+  const layout = ['1','2','3','4','5','6','7','8','9','bio','0','back'];
+  layout.forEach(k => {
+    const b = document.createElement('button');
+    if (k === 'bio') {
+      b.textContent = '👆';
+      b.className = 'wide';
+      b.onclick = () => tryBiometric();
+      b.id = containerId + '_bio';
+      if (!isBioEnabled() || !hasBioCred()) b.style.visibility = 'hidden';
+    } else if (k === 'back') {
+      b.textContent = '⌫';
+      b.onclick = () => onBack();
+    } else {
+      b.textContent = k;
+      b.onclick = () => onDigit(k);
+    }
+    box.appendChild(b);
+  });
+}
+
+function updateDots(displayId, value) {
+  const dots = document.querySelectorAll('#' + displayId + ' .pin-dot');
+  dots.forEach((d, i) => d.classList.toggle('filled', i < value.length));
+}
+
+/* ---- FIRST TIME SETUP ---- */
+let setupPin1 = '';
+function startSetup() {
+  setupPin1 = '';
+  updateDots('setupPinDisplay', '');
+  document.getElementById('setupErr').textContent = '';
+  buildKeypad('setupKeypad',
+    (d) => {
+      if (setupPin1.length >= 4) return;
+      setupPin1 += d;
+      updateDots('setupPinDisplay', setupPin1);
+      if (setupPin1.length === 4) {
+        setTimeout(() => confirmSetupPin(), 150);
+      }
+    },
+    () => { setupPin1 = setupPin1.slice(0, -1); updateDots('setupPinDisplay', setupPin1); }
+  );
+  showScreen('setupScreen');
+}
+
+async function confirmSetupPin() {
+  const pin1 = setupPin1;
+  setupPin1 = '';
+  const pin2 = prompt('Confirm your 4-digit PIN:');
+  if (pin2 === null) { startSetup(); return; }
+  if (pin1 !== pin2) {
+    document.getElementById('setupErr').textContent = 'PINs did not match. Try again.';
+    startSetup();
+    return;
+  }
+  localStorage.setItem(PIN_KEY, await hashPin(pin1));
+  // Offer biometric
+  if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()) {
+    if (confirm('Enable fingerprint / face unlock?')) {
+      await registerBiometric();
+    }
+  }
+  showList();
+}
+
+function skipSetup() {
+  if (confirm('Skip PIN? Your data will not be protected on this device.')) {
+    showList();
+  }
+}
+
+/* ---- LOCK SCREEN ---- */
+let lockPin = '';
+let pinAttempts = 0;
+
+function startLock() {
+  lockPin = '';
+  updateDots('lockPinDisplay', '');
+  document.getElementById('lockErr').textContent = '';
+  const bioBtn = document.getElementById('bioUnlockBtn');
+  if (isBioEnabled() && hasBioCred()) bioBtn.classList.remove('hidden');
+  else bioBtn.classList.add('hidden');
+
+  buildKeypad('lockKeypad',
+    (d) => {
+      if (lockPin.length >= 4) return;
+      lockPin += d;
+      updateDots('lockPinDisplay', lockPin);
+      if (lockPin.length === 4) setTimeout(() => verifyPin(), 150);
+    },
+    () => { lockPin = lockPin.slice(0, -1); updateDots('lockPinDisplay', lockPin); }
+  );
+
+  showScreen('lockScreen');
+  if (isBioEnabled() && hasBioCred()) {
+    setTimeout(() => tryBiometric(), 400);
+  }
+}
+
+async function verifyPin() {
+  const entered = lockPin;
+  lockPin = '';
+  const stored = localStorage.getItem(PIN_KEY);
+  const hash = await hashPin(entered);
+  if (hash === stored) {
+    pinAttempts = 0;
+    updateDots('lockPinDisplay', '');
+    showList();
+  } else {
+    pinAttempts++;
+    document.getElementById('lockErr').textContent = 'Wrong PIN. Try again. (' + pinAttempts + ')';
+    updateDots('lockPinDisplay', '');
+    if (navigator.vibrate) navigator.vibrate(200);
+  }
+}
+
+/* ---- BIOMETRIC (WebAuthn) ---- */
+async function registerBiometric() {
+  if (!window.PublicKeyCredential) {
+    alert('Biometric not supported on this device/browser.');
+    return false;
+  }
+  try {
+    const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+    const userId = new Uint8Array(16); crypto.getRandomValues(userId);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'RGS Store' },
+        user: { id: userId, name: 'rgs-user', displayName: 'RGS User' },
+        pubKeyCredParams: [
+          { alg: -7, type: 'public-key' },
+          { alg: -257, type: 'public-key' }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'preferred'
+        },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+    if (cred) {
+      const idB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+      localStorage.setItem(BIO_CRED_KEY, idB64);
+      localStorage.setItem(BIO_ENABLED_KEY, '1');
+      alert('✅ Fingerprint / Face registered!');
+      return true;
+    }
+  } catch (e) {
+    console.warn('Biometric reg error:', e);
+    alert('Biometric setup failed or cancelled.');
+    return false;
+  }
+}
+
+async function tryBiometric() {
+  const credIdB64 = localStorage.getItem(BIO_CRED_KEY);
+  if (!credIdB64) { alert('Biometric not set up.'); return; }
+  try {
+    const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+    const idBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: idBytes, type: 'public-key' }],
+        timeout: 60000,
+        userVerification: 'required'
+      }
+    });
+    if (assertion) {
+      lockPin = '';
+      showList();
+    }
+  } catch (e) {
+    console.warn('Biometric auth failed:', e);
+    document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.';
+  }
+}
+
+/* =========================================================
+   ⚙️ SETTINGS
+========================================================= */
+function openSettings() {
+  updateSettingsUI();
+  showScreen('settingsScreen');
+}
+
+function updateSettingsUI() {
+  document.getElementById('pinStatus').innerHTML = hasPIN()
+    ? '<span class="status-dot on"></span>Set'
+    : '<span class="status-dot off"></span>Not set';
+  document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred()
+    ? '<span class="status-dot on"></span>Enabled'
+    : '<span class="status-dot off"></span>Off';
+  if (firebaseReady && fbAuth) {
+    const u = fbAuth.currentUser;
+    document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
+    document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
+    document.getElementById('cloudBtn').onclick = u ? signOutCloud : () => showScreen('loginScreen');
+    document.getElementById('syncBtn').classList.toggle('hidden', !u);
+  } else {
+    document.getElementById('cloudStatus').textContent = 'Not configured';
+    document.getElementById('cloudBtn').textContent = 'Setup Required';
+    document.getElementById('cloudBtn').onclick = () => alert('Firebase config missing in index.html');
+  }
+  const ls = localStorage.getItem('rgs_last_sync');
+  document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
+}
+
+async function changePin() {
+  if (hasPIN()) {
+    const old = prompt('Enter current PIN:');
+    if (old === null) return;
+    if (await hashPin(old) !== localStorage.getItem(PIN_KEY)) { alert('Wrong PIN.'); return; }
+  }
+  const np1 = prompt('New 4-digit PIN:');
+  if (!np1 || np1.length !== 4) { alert('PIN must be 4 digits.'); return; }
+  const np2 = prompt('Confirm new PIN:');
+  if (np1 !== np2) { alert('PINs do not match.'); return; }
+  localStorage.setItem(PIN_KEY, await hashPin(np1));
+  alert('✅ PIN updated.');
+  updateSettingsUI();
+}
+
+async function toggleBiometric() {
+  if (isBioEnabled() && hasBioCred()) {
+    if (confirm('Disable biometric unlock?')) {
+      localStorage.removeItem(BIO_CRED_KEY);
+      localStorage.removeItem(BIO_ENABLED_KEY);
+      alert('Biometric disabled.');
+    }
+  } else {
+    await registerBiometric();
+  }
+  updateSettingsUI();
+}
+
+/* =========================================================
+   ☁️ CLOUD (Firebase Auth + Firestore)
+========================================================= */
+async function doLogin() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  try {
+    await fbAuth.signInWithEmailAndPassword(email, pass);
+    await pullFromCloud();
+    alert('✅ Signed in! Data synced.');
+    showList();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message || 'Login failed';
+  }
+}
+
+async function doSignup() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  if (pass.length < 6) { document.getElementById('loginErr').textContent = 'Password min 6 chars'; return; }
+  try {
+    await fbAuth.createUserWithEmailAndPassword(email, pass);
+    await pushToCloud();
+    alert('✅ Account created & data backed up!');
+    showList();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message || 'Signup failed';
+  }
+}
+
+async function signOutCloud() {
+  if (!firebaseReady) return;
+  if (!confirm('Sign out? Local data will stay, but cloud sync will stop.')) return;
+  await fbAuth.signOut();
+  updateSettingsUI();
+  alert('Signed out.');
+}
+
+function handleCloud() {
+  if (!firebaseReady) { alert('Firebase config missing.'); return; }
+  if (fbAuth.currentUser) signOutCloud();
+  else showScreen('loginScreen');
+}
+
+async function pushToCloud() {
+  if (!firebaseReady || !fbAuth.currentUser) return false;
+  const uid = fbAuth.currentUser.uid;
+  try {
+    await fbDb.collection('stores').doc(uid).set({
+      bills: bills,
+      supBills: supBills,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email: fbAuth.currentUser.email
+    });
+    localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    return true;
+  } catch (e) {
+    console.warn('Push failed:', e);
+    return false;
+  }
+}
+
+async function pullFromCloud() {
+  if (!firebaseReady || !fbAuth.currentUser) return false;
+  const uid = fbAuth.currentUser.uid;
+  try {
+    const doc = await fbDb.collection('stores').doc(uid).get();
+    if (doc.exists) {
+      const d = doc.data();
+      if (Array.isArray(d.bills)) bills = d.bills;
+      if (Array.isArray(d.supBills)) supBills = d.supBills;
+      saveToStorage(); supSave();
+      localStorage.setItem('rgs_last_sync', new Date().toISOString());
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('Pull failed:', e);
+    return false;
+  }
+}
+
+async function syncNow() {
+  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
+  if (!confirm('Sync? This will overwrite cloud data with your local data.')) return;
+  const ok = await pushToCloud();
+  if (ok) { alert('✅ Synced to cloud.'); updateSettingsUI(); }
+  else alert('❌ Sync failed.');
+}
+
+/* Auto-sync after each change (silent) */
+let syncTimer = null;
+function scheduleAutoSync() {
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToCloud(), 3000);
+}
+
+/* =========================================================
+   📤 EXPORT / IMPORT
+========================================================= */
+function exportData() {
+  const data = { bills, supBills, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rgs-backup-' + today() + '.json';
+  a.click();
+}
+
+function importData(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!Array.isArray(d.bills) || !Array.isArray(d.supBills)) throw new Error('Invalid');
+      if (!confirm('Replace all current data with backup?')) return;
+      bills = d.bills; supBills = d.supBills;
+      saveToStorage(); supSave();
+      alert('✅ Imported.');
+      showList();
+    } catch (e) { alert('Invalid backup file.'); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+}
+
+/* =========================================================
+   EXISTING APP CODE (unchanged)
+========================================================= */
+function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
+function today() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+function readJSON(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+function safeSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)); return true; }
+  catch (e) { alert('⚠️ Storage full.'); return false; }
+}
+function loadBills() {
+  let changed = false;
+  const list = readJSON('rgs_bills').map(bill => {
+    if (!bill || typeof bill !== 'object') { changed = true; return null; }
+    if (!bill.id) { bill.id = uid(); changed = true; }
+    if (!Array.isArray(bill.items)) { bill.items = []; changed = true; }
+    if (!Array.isArray(bill.payments)) {
+      bill.payments = [];
+      if (Number(bill.paid) > 0) bill.payments.push({ amount: Number(bill.paid), date: bill.paidDate || bill.date || '' });
+      changed = true;
+    }
+    return bill;
+  }).filter(Boolean);
+  if (changed) safeSet('rgs_bills', list);
+  return list;
+}
+function loadSupBills() {
+  let changed = false;
+  const list = readJSON('rgs_suppliers').map(b => {
+    if (!b || typeof b !== 'object') { changed = true; return null; }
+    if (!b.id) { b.id = uid(); changed = true; }
+    if (!Array.isArray(b.payments)) {
+      b.payments = [];
+      if (Number(b.paid) > 0) b.payments.push({ amount: Number(b.paid), date: b.paidDate || b.date || '' });
+      changed = true;
+    }
+    return b;
+  }).filter(Boolean);
+  if (changed) safeSet('rgs_suppliers', list);
+  return list;
+}
+
+let bills = loadBills();
+let supBills = loadSupBills();
+let currentBillId = null, currentSupId = null;
+let editingId = null, editingSupId = null;
+let editExistingPaid = 0, supExistingPaid = 0;
+let urdu = false, formTitleKey = 'formtitle', supFormTitleKey = 'supformtitle';
+
+function saveToStorage() { const ok = safeSet('rgs_bills', bills); if (ok) scheduleAutoSync(); return ok; }
+function supSave() { const ok = safeSet('rgs_suppliers', supBills); if (ok) scheduleAutoSync(); return ok; }
+function getBill() { return bills.find(b => b.id === currentBillId) || null; }
+function getSup() { return supBills.find(b => b.id === currentSupId) || null; }
+function screenVisible(id) { return !document.getElementById(id).classList.contains('hidden'); }
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'rgs_bills') {
+    bills = loadBills();
+    if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
+    else if (screenVisible('listScreen')) renderList();
+  }
+  if (e.key === 'rgs_suppliers') {
+    supBills = loadSupBills();
+    if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
+    else if (screenVisible('supListScreen')) renderSupplierList();
+  }
+});
+
+function escapeHtml(value = '') {
+  return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatMoney(value) { return Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 }); }
+function toNumber(value) { const n = Number(value); return isFinite(n) && n > 0 ? n : 0; }
+function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : today(); }
+
+/* ============ TRANSLATION ============ */
+const T = {
+  store:['Rajpoot General Store','راجپوٹ جنرل سٹور'],
+  sub:['Customer Bills Manager','کسٹمر بل منیجر'],
+  bills:['Total Bills','کل بلز'],
+  pending:['Total Pending','کل بقایا'],
+  newbill:['New Bill','نیا بل'],
+  formtitle:['New Bill','نیا بل'],
+  cname:['Customer Name','کسٹمر کا نام'],
+  bdate:['Bill Date','بل کی تاریخ'],
+  ptype:['Payment Type','پیمنٹ کی قسم'],
+  items:['Items (Name | Qty | Rate)','آئٹمز (نام | مقدار | ریٹ)'],
+  additem:['Add Item','آئٹم شامل کریں'],
+  total:['Total','کل'],
+  apaid:['Amount Paid','ادا شدہ رقم'],
+  apdate:['Payment Date','پیمنٹ کی تاریخ'],
+  tpending:['Pending','بقایا'],
+  save:['Save Bill','بل محفوظ کریں'],
+  back:['Back','واپس'],
+  moreitems:['Add More Items to This Bill','اس بل میں مزید آئٹمز شامل کریں'],
+  addpay:['Add Payment (Khata Adjustment)','پیمنٹ شامل کریں (کھاتہ ایڈجسٹمنٹ)'],
+  share:['Share on WhatsApp','واٹس ایپ پر شیئر کریں'],
+  del:['Delete Bill','بل ڈیلیٹ کریں'],
+  back2:['Back','واپس'],
+  editbill:['Edit Bill','بل ایڈیٹ کریں'],
+  payments:['Payment History','پیمنٹ کی ہسٹری'],
+  overpay:['Amount is more than pending. Extra will not be counted. Continue?','رقم بقایا سے زیادہ ہے۔ ایکسٹرا شمار نہیں ہوگا۔ کیا آپ جاری رکھنا چاہتے ہیں؟'],
+  overpaySave:['Amount Paid is more than Total. Extra will not be counted.','ادا شدہ رقم کل سے زیادہ ہے۔ ایکسٹرا شمار نہیں ہوگا۔'],
+  already:['Already Paid','پہلے ادا شدہ'],
+  already2:['Already Paid','پہلے ادا شدہ'],
+  clear:['Clear','واضحہ'],
+  dues:['Dues','احتساب'],
+  paidlabel:['Paid','ادا شدہ'],
+  search:['Search name or date...','نام یا تاریخ تلاش کریں...'],
+  suppliers:['Suppliers','سپلائرز'],
+  custbills:['Customer Bills','کسٹمر بلز'],
+  suphead:['Supplier Management','سپلائر مینجمنٹ'],
+  supsub:['Supplier Bills & Payments','سپلائر بلز اور ادائیگیاں'],
+  sups:['Suppliers','سپلائرز'],
+  supdue:['Total Dues','کل احتساب'],
+  newsupbill:['New Supplier Bill','نیا سپلائر بل'],
+  supname:['Supplier Name','سپلائر کا نام'],
+  supbdate:['Bill Date','بل کی تاریخ'],
+  supdesc:['Description / Invoice No.','تفصیل / انوائس نمبر'],
+  supamount:['Bill Amount (Rs.)','بل کی رقم (روپے)'],
+  suppaidamt:['Amount Paid Now (Rs.)','ابھی ادا شدہ رقم (روپے)'],
+  suppaydate:['Payment Date','پیمنٹ کی تاریخ'],
+  suptotal:['Total','کل'],
+  supdue2:['Dues (Hum ne dena hai)','احتساب (ہم نے دینا ہے)'],
+  supsave:['Save Supplier Bill','سپلائر بل محفوظ کریں'],
+  supback:['Back','واپس'],
+  supback2:['Back','واپس'],
+  supformtitle:['New Supplier Bill','نیا سپلائر بل'],
+  editsup:['Edit Supplier Bill','سپلائر بل ایڈیٹ کریں'],
+  supaddpay:['Pay to Supplier','سپلائر کو ادائیگی کریں'],
+  supshare:['Share on WhatsApp','واٹس ایپ پر شیئر کریں'],
+  supdel:['Delete Bill','بل ڈیلیٹ کریں'],
+  invoice:['Invoice','انوائس'],
+  ptcash:['Cash','نقد'],
+  ptonline:['Online','آن لائن'],
+  ptcredit:['Credit','کھاتہ'],
+  install:['Install App','ایپ انسٹال کریں'],
+  settings:['Settings','سیٹنگز'],
+  needName:['Please write customer name','کسٹمر کا نام لکھیں'],
+  needItem:['Add at least 1 item (name + qty)','کم از کم 1 آئٹم دیں (نام + مقدار)'],
+  needSupName:['Please write supplier name','سپلائر کا نام لکھیں'],
+  needAmount:['Enter bill amount','بل کی رقم درج کریں'],
+  delPayment:['Delete this payment?','یہ پیمنٹ ڈیلیٹ کریں؟'],
+  delBill:['Delete this bill permanently?','یہ بل ہمیشہ کے لیے ڈیلیٹ کریں؟'],
+  delSupBill:['Delete this supplier bill permanently?','یہ سپلائر بل ہمیشہ کے لیے ڈیلیٹ کریں؟'],
+  noPending:['No pending!','کوئی بقایا نہیں!'],
+  noDues:['No dues!','کوئی احتساب نہیں!'],
+  payPrompt:['Payment amount (Pending: Rs. ','پیمنٹ کی رقم (بقایا: روپے '],
+  duePrompt:['Payment amount (Dues: Rs. ','پیمنٹ کی رقم (احتساب: روپے '],
+  datePrompt:['Payment date (YYYY-MM-DD):','پیمنٹ کی تاریخ (YYYY-MM-DD):']
+};
+
+function getText(key) { return T[key] ? T[key][urdu ? 1 : 0] : key; }
+function typeLabel(ptype) { const key = 'pt' + ptype; return T[key] ? getText(key) : (ptype || ''); }
+function typeClass(ptype) { return ['cash', 'online', 'credit'].includes(ptype) ? ptype : ''; }
+
+function toggleLang() {
+  urdu = !urdu;
+  document.body.classList.toggle('urdu', urdu);
+  document.documentElement.dir = urdu ? 'rtl' : 'ltr';
+  for (const key in T) {
+    const el = document.getElementById('t-' + key);
+    if (el) el.textContent = T[key][urdu ? 1 : 0];
+  }
+  const bs = document.getElementById('billSearch'); if (bs) bs.placeholder = getText('search');
+  const ss = document.getElementById('supSearch'); if (ss) ss.placeholder = getText('search');
+  refreshCurrentScreen();
+}
+
+function refreshCurrentScreen() {
+  if (screenVisible('listScreen')) renderList();
+  else if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
+  else if (screenVisible('supListScreen')) renderSupplierList();
+  else if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
+  else if (screenVisible('formScreen')) document.getElementById('t-formtitle').textContent = getText(formTitleKey);
+  else if (screenVisible('supFormScreen')) document.getElementById('t-supformtitle').textContent = getText(supFormTitleKey);
+}
+
+function showScreen(screen) {
+  ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen']
+    .forEach((id) => document.getElementById(id).classList.add('hidden'));
+  document.getElementById(screen).classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+/* ============ CUSTOMER LIST ============ */
+function showList() { currentBillId = null; showScreen('listScreen'); renderList(); }
+
+function renderList() {
+  const list = document.getElementById('billList');
+  const q = (document.getElementById('billSearch').value || '').trim().toLowerCase();
+  list.innerHTML = '';
+  let totalPending = 0;
+  bills.forEach((bill) => {
+    const total = totalAmount(bill);
+    const paid = totalPaid(bill);
+    const pending = total - paid;
+    totalPending += Math.max(pending, 0);
+    if (q && !(String(bill.name || '').toLowerCase().includes(q)) && !(String(bill.date || '').toLowerCase().includes(q))) return;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => openDetail(bill.id);
+    const clearBadge = pending <= 0 ? '<span class="badge cash" style="margin-left:8px">' + escapeHtml(getText('clear')) + '</span>' : '';
+    const ptype = bill.ptype || '';
+    card.innerHTML =
+      '<h3>' + escapeHtml(bill.name) + clearBadge + '</h3>' +
+      '<div class="meta">' + escapeHtml(bill.date || '-') + '</div>' +
+      '<div class="row"><span>' + getText('total') + ': Rs. ' + formatMoney(total) + '</span>' +
+      '<span class="badge ' + typeClass(ptype) + '">' + escapeHtml(typeLabel(ptype)) + '</span></div>' +
+      '<div class="row"><span>' + getText('tpending') + ': Rs. ' + formatMoney(Math.max(pending, 0)) + '</span></div>';
+    list.appendChild(card);
+  });
+  document.getElementById('billCount').textContent = bills.length;
+  document.getElementById('totalPending').textContent = formatMoney(totalPending);
+}
+
+function itemsTotal(bill) { return (bill.items || []).reduce((sum, it) => sum + Number(it.qty || 0) * Number(it.rate || 0), 0); }
+function totalPaid(bill) { return (bill.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0); }
+function totalAmount(bill) { return itemsTotal(bill); }
+
+/* ============ CUSTOMER FORM ============ */
+function newBill() {
+  editingId = null; editExistingPaid = 0; formTitleKey = 'formtitle';
+  document.getElementById('t-formtitle').textContent = getText('formtitle');
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-date').value = today();
+  document.getElementById('f-ptype').value = 'cash';
+  document.getElementById('f-paid').value = 0;
+  document.getElementById('f-paiddate').value = today();
+  document.getElementById('f-already').classList.add('hidden');
+  document.getElementById('itemsBox').innerHTML = '';
+  addItemRow(); calcTotal();
+  showScreen('formScreen');
+}
+
+function editBill() {
+  const bill = getBill(); if (!bill) return;
+  editingId = bill.id; editExistingPaid = totalPaid(bill); formTitleKey = 'editbill';
+  document.getElementById('t-formtitle').textContent = getText('editbill');
+  document.getElementById('f-name').value = bill.name || '';
+  document.getElementById('f-date').value = bill.date || today();
+  document.getElementById('f-ptype').value = bill.ptype || 'cash';
+  document.getElementById('f-paid').value = 0;
+  document.getElementById('f-paiddate').value = today();
+  const alreadyBox = document.getElementById('f-already');
+  if (editExistingPaid > 0) { alreadyBox.classList.remove('hidden'); document.getElementById('f-epaid').textContent = formatMoney(editExistingPaid); }
+  else alreadyBox.classList.add('hidden');
+  const box = document.getElementById('itemsBox'); box.innerHTML = '';
+  (bill.items || []).forEach(it => addItemRow(it.name, it.qty, it.rate));
+  if (!box.children.length) addItemRow();
+  calcTotal(); showScreen('formScreen');
+}
+
+function addItemRow(name = '', qty = '', rate = '') {
+  const box = document.getElementById('itemsBox');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML =
+    '<input type="text" placeholder="Item" value="' + escapeHtml(name) + '" oninput="calcTotal()">' +
+    '<input type="number" min="0" step="any" placeholder="Qty" value="' + escapeHtml(qty) + '" oninput="calcTotal()">' +
+    '<input type="number" min="0" step="any" placeholder="Rate" value="' + escapeHtml(rate) + '" oninput="calcTotal()">' +
+    '<button type="button" class="btn red small" onclick="this.parentNode.remove(); calcTotal()">✕</button>';
+  box.appendChild(row); calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('#itemsBox .item-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    total += toNumber(inputs[1].value) * toNumber(inputs[2].value);
+  });
+  document.getElementById('f-total').textContent = formatMoney(total);
+  const paid = toNumber(document.getElementById('f-paid').value);
+  const pending = Math.max(total - editExistingPaid - paid, 0);
+  document.getElementById('f-pending').textContent = formatMoney(pending);
+}
+
+function saveBill() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert(getText('needName')); return; }
+  const items = [];
+  document.querySelectorAll('#itemsBox .item-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const iname = inputs[0].value.trim();
+    const qty = toNumber(inputs[1].value);
+    const rate = toNumber(inputs[2].value);
+    if (iname && qty > 0) items.push({ name: iname, qty, rate });
+  });
+  if (!items.length) { alert(getText('needItem')); return; }
+  let paid = toNumber(document.getElementById('f-paid').value);
+  const total = itemsTotal({ items });
+  const wasEditing = editingId !== null;
+  if (editExistingPaid + paid > total) {
+    if (!confirm(getText('overpaySave'))) return;
+    paid = Math.max(total - editExistingPaid, 0);
+  }
+  const billData = {
+    name,
+    date: validDate(document.getElementById('f-date').value),
+    ptype: document.getElementById('f-ptype').value || 'cash',
+    items, payments: []
+  };
+  if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('f-paiddate').value) });
+  if (wasEditing) {
+    const idx = bills.findIndex(b => b.id === editingId);
+    if (idx >= 0) { billData.id = editingId; billData.payments = (bills[idx].payments || []).concat(billData.payments); bills[idx] = billData; }
+    else { billData.id = uid(); bills.push(billData); }
+  } else { billData.id = uid(); bills.push(billData); }
+  editingId = null; editExistingPaid = 0;
+  if (!saveToStorage()) return;
+  if (wasEditing) openDetail(billData.id); else showList();
+}
+
+function openDetail(id) { currentBillId = id; renderDetail(); showScreen('detailScreen'); }
+
+function renderDetail() {
+  const bill = getBill(); if (!bill) { showList(); return; }
+  document.getElementById('d-name').textContent = bill.name || '-';
+  const paid = totalPaid(bill);
+  const pending = totalAmount(bill) - paid;
+  const ptype = bill.ptype || '';
+  let html = '<div class="meta">' + getText('bdate') + ': ' + escapeHtml(bill.date || '-') +
+    ' | ' + getText('ptype') + ': <span class="badge ' + typeClass(ptype) + '">' + escapeHtml(typeLabel(ptype)) + '</span></div>';
+  (bill.items || []).forEach(it => {
+    html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) +
+      '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
+  });
+  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span>' + getText('total') +
+    '</span><span>Rs. ' + formatMoney(totalAmount(bill)) + '</span></div>';
+  if ((bill.payments || []).length) {
+    html += '<h3 style="margin-top:10px">' + getText('payments') + '</h3>';
+    bill.payments.forEach((p, idx) => {
+      html += '<div class="pay-row"><span>Rs. ' + formatMoney(p.amount) + (p.date ? ' — ' + escapeHtml(p.date) : '') + '</span>' +
+        '<button class="del-pay" onclick="removePayment(' + idx + ')">✕</button></div>';
+    });
+  }
+  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span class="' + (pending > 0 ? 'pending' : 'paid') + '">' +
+    getText('tpending') + '</span><span class="' + (pending > 0 ? 'pending' : 'paid') + '">Rs. ' +
+    formatMoney(Math.max(pending, 0)) + '</span></div>';
+  document.getElementById('d-details').innerHTML = html;
+}
+
+function removePayment(idx) {
+  if (!confirm(getText('delPayment'))) return;
+  const bill = getBill();
+  if (!bill || !Array.isArray(bill.payments) || !bill.payments[idx]) return;
+  bill.payments.splice(idx, 1); saveToStorage(); renderDetail();
+}
+
+function addMoreItems() {
+  editBill();
+  setTimeout(() => {
+    addItemRow();
+    const box = document.getElementById('itemsBox');
+    if (box.lastElementChild) box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 60);
+}
+
+function addPayment() {
+  const bill = getBill(); if (!bill) return;
+  const pending = totalAmount(bill) - totalPaid(bill);
+  if (pending <= 0) { alert(getText('noPending')); return; }
+  const input = prompt(getText('payPrompt') + formatMoney(pending) + '):');
+  if (input === null) return;
+  const amount = toNumber(input); if (amount <= 0) return;
+  let finalAmount = amount;
+  if (amount > pending) { if (!confirm(getText('overpay'))) return; finalAmount = pending; }
+  const date = prompt(getText('datePrompt'), today());
+  if (date === null) return;
+  bill.payments.push({ amount: finalAmount, date: validDate(date) });
+  if (!saveToStorage()) return;
+  renderDetail();
+}
+
+function deleteBill() {
+  if (!confirm(getText('delBill'))) return;
+  const idx = bills.findIndex(b => b.id === currentBillId);
+  if (idx < 0) return;
+  bills.splice(idx, 1); currentBillId = null; saveToStorage(); showList();
+}
+
+function normalizePhone(raw) {
+  let p = String(raw).replace(/\D/g, '');
+  if (!p) return '';
+  if (p.startsWith('00')) p = p.slice(2);
+  if (p.startsWith('92') && p.length === 12) return p;
+  if (p.length === 11 && p.startsWith('0')) return '92' + p.slice(1);
+  if (p.length === 10 && p.startsWith('3')) return '92' + p;
+  return p;
+}
+
+function shareWhatsApp() {
+  const bill = getBill(); if (!bill) return;
+  const paid = totalPaid(bill);
+  const pending = totalAmount(bill) - paid;
+  let msg = '*Rajpoot General Store*\nCustomer: ' + (bill.name || '-') + '\nDate: ' + (bill.date || '-') + '\n------------------------\n';
+  (bill.items || []).forEach(it => {
+    msg += (it.name || '-') + ' x' + it.qty + ' = Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '\n';
+  });
+  msg += '------------------------\nTotal: Rs. ' + formatMoney(totalAmount(bill)) + '\nPaid: Rs. ' + formatMoney(paid) +
+    '\nPending: Rs. ' + formatMoney(Math.max(pending, 0)) + '\n\nShukriya! / شکریہ!';
+  const phone = prompt('Customer WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
+  let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  if (phone && phone.trim()) { const digits = normalizePhone(phone); if (digits) url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(msg); }
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ============ SUPPLIER ============ */
+function showSupplierList() { currentSupId = null; showScreen('supListScreen'); renderSupplierList(); }
+function supPaid(b) { return (b.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0); }
+
+function renderSupplierList() {
+  const list = document.getElementById('supList');
+  const q = (document.getElementById('supSearch').value || '').trim().toLowerCase();
+  list.innerHTML = '';
+  let totalDue = 0;
+  supBills.forEach((b) => {
+    const paid = supPaid(b);
+    const due = Number(b.amount || 0) - paid;
+    totalDue += Math.max(due, 0);
+    if (q && !(String(b.name || '').toLowerCase().includes(q)) && !(String(b.date || '').toLowerCase().includes(q)) && !(String(b.desc || '').toLowerCase().includes(q))) return;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => { currentSupId = b.id; renderSupDetail(); showScreen('supDetailScreen'); };
+    card.innerHTML =
+      '<h3>' + escapeHtml(b.name) + '</h3>' +
+      '<div class="meta">' + escapeHtml(b.date || '-') + (b.desc ? ' | ' + escapeHtml(b.desc) : '') + '</div>' +
+      '<div class="row"><span>' + getText('total') + ': Rs. ' + formatMoney(b.amount) + '</span></div>' +
+      '<div class="row"><span class="' + (due > 0 ? 'pending' : 'paid') + '">' + getText('dues') + ': Rs. ' + formatMoney(Math.max(due, 0)) + '</span></div>';
+    list.appendChild(card);
+  });
+  document.getElementById('supCount').textContent = supBills.length;
+  document.getElementById('totalDue').textContent = formatMoney(totalDue);
+}
+
+function newSupBill() {
+  editingSupId = null; supExistingPaid = 0; supFormTitleKey = 'supformtitle';
+  document.getElementById('t-supformtitle').textContent = getText('supformtitle');
+  document.getElementById('s-name').value = '';
+  document.getElementById('s-date').value = today();
+  document.getElementById('s-desc').value = '';
+  document.getElementById('s-amount').value = '';
+  document.getElementById('s-paid').value = 0;
+  document.getElementById('s-paiddate').value = today();
+  document.getElementById('s-already').classList.add('hidden');
+  supCalc(); showScreen('supFormScreen');
+}
+
+function editSupBill() {
+  const b = getSup(); if (!b) return;
+  editingSupId = b.id; supExistingPaid = supPaid(b); supFormTitleKey = 'editsup';
+  document.getElementById('t-supformtitle').textContent = getText('editsup');
+  document.getElementById('s-name').value = b.name || '';
+  document.getElementById('s-date').value = b.date || today();
+  document.getElementById('s-desc').value = b.desc || '';
+  document.getElementById('s-amount').value = Number(b.amount) || 0;
+  document.getElementById('s-paid').value = 0;
+  document.getElementById('s-paiddate').value = today();
+  const alreadyBox = document.getElementById('s-already');
+  if (supExistingPaid > 0) { alreadyBox.classList.remove('hidden'); document.getElementById('s-epaid').textContent = formatMoney(supExistingPaid); }
+  else alreadyBox.classList.add('hidden');
+  supCalc(); showScreen('supFormScreen');
+}
+
+function supCalc() {
+  const total = toNumber(document.getElementById('s-amount').value);
+  const paid = toNumber(document.getElementById('s-paid').value);
+  document.getElementById('s-total').textContent = formatMoney(total);
+  document.getElementById('s-pending').textContent = formatMoney(Math.max(total - supExistingPaid - paid, 0));
+}
+
+function saveSupBill() {
+  const name = document.getElementById('s-name').value.trim();
+  const amount = toNumber(document.getElementById('s-amount').value);
+  if (!name) { alert(getText('needSupName')); return; }
+  if (amount <= 0) { alert(getText('needAmount')); return; }
+  let paid = toNumber(document.getElementById('s-paid').value);
+  const wasEditing = editingSupId !== null;
+  if (supExistingPaid + paid > amount) {
+    if (!confirm(getText('overpaySave'))) return;
+    paid = Math.max(amount - supExistingPaid, 0);
+  }
+  const bill = {
+    name, amount,
+    desc: document.getElementById('s-desc').value.trim(),
+    date: validDate(document.getElementById('s-date').value),
+    payments: []
+  };
+  if (paid > 0) bill.payments.push({ amount: paid, date: validDate(document.getElementById('s-paiddate').value) });
+  if (wasEditing) {
+    const idx = supBills.findIndex(b => b.id === editingSupId);
+    if (idx >= 0) { bill.id = editingSupId; bill.payments = (supBills[idx].payments || []).concat(bill.payments); supBills[idx] = bill; }
+    else { bill.id = uid(); supBills.push(bill); }
+  } else { bill.id = uid(); supBills.push(bill); }
+  editingSupId = null; supExistingPaid = 0;
+  if (!supSave()) return;
+  if (wasEditing) { currentSupId = bill.id; renderSupDetail(); showScreen('supDetailScreen'); }
+  else showSupplierList();
+}
+
+function renderSupDetail() {
+  const b = getSup(); if (!b) { showSupplierList(); return; }
+  document.getElementById('sd-name').textContent = b.name || '-';
+  const paid = supPaid(b);
+  const due = Number(b.amount || 0) - paid;
+  let html = '<div class="meta">' + escapeHtml(b.date || '-') + (b.desc ? ' | ' + escapeHtml(b.desc) : '') + '</div>';
+  html += '<div class="row" style="font-weight:bold"><span>' + getText('total') + '</span><span>Rs. ' + formatMoney(b.amount) + '</span></div>';
+  if ((b.payments || []).length) {
+    html += '<h3 style="margin-top:10px">' + getText('payments') + '</h3>';
+    b.payments.forEach((p, idx) => {
+      html += '<div class="pay-row"><span>Rs. ' + formatMoney(p.amount) + (p.date ? ' — ' + escapeHtml(p.date) : '') + '</span>' +
+        '<button class="del-pay" onclick="removeSupPayment(' + idx + ')">✕</button></div>';
+    });
+  }
+  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span class="' + (due > 0 ? 'pending' : 'paid') + '">' + getText('dues') + '</span>' +
+    '<span class="' + (due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(due, 0)) + '</span></div>';
+  document.getElementById('sd-details').innerHTML = html;
+}
+
+function removeSupPayment(idx) {
+  if (!confirm(getText('delPayment'))) return;
+  const b = getSup();
+  if (!b || !Array.isArray(b.payments) || !b.payments[idx]) return;
+  b.payments.splice(idx, 1); supSave(); renderSupDetail();
+}
+
+function addSupPayment() {
+  const b = getSup(); if (!b) return;
+  const due = Number(b.amount || 0) - supPaid(b);
+  if (due <= 0) { alert(getText('noDues')); return; }
+  const input = prompt(getText('duePrompt') + formatMoney(due) + '):');
+  if (input === null) return;
+  const amount = toNumber(input); if (amount <= 0) return;
+  let finalAmount = amount;
+  if (amount > due) { if (!confirm(getText('overpay'))) return; finalAmount = due; }
+  const date = prompt(getText('datePrompt'), today());
+  if (date === null) return;
+  b.payments.push({ amount: finalAmount, date: validDate(date) });
+  if (!supSave()) return;
+  renderSupDetail();
+}
+
+function deleteSupBill() {
+  if (!confirm(getText('delSupBill'))) return;
+  const idx = supBills.findIndex(b => b.id === currentSupId);
+  if (idx < 0) return;
+  supBills.splice(idx, 1); currentSupId = null; supSave(); showSupplierList();
+}
+
+function shareSupWhatsApp() {
+  const b = getSup(); if (!b) return;
+  const paid = supPaid(b);
+  const due = Number(b.amount || 0) - paid;
+  let msg = '*Rajpoot General Store*\nSupplier: ' + (b.name || '-') + '\nDate: ' + (b.date || '-') + '\n';
+  if (b.desc) msg += getText('invoice') + ': ' + b.desc + '\n';
+  msg += '------------------------\nTotal: Rs. ' + formatMoney(b.amount) + '\nPaid: Rs. ' + formatMoney(paid) + '\n' + getText('dues') + ': Rs. ' + formatMoney(Math.max(due, 0)) + '\n';
+  const phone = prompt('Supplier WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
+  let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  if (phone && phone.trim()) { const digits = normalizePhone(phone); if (digits) url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(msg); }
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ============ PWA INSTALL ============ */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); deferredPrompt = e;
+  const b = document.getElementById('installBtn'); if (b) b.classList.remove('hidden');
+});
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.classList.add('hidden'); });
+}
+window.addEventListener('appinstalled', () => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.classList.add('hidden'); });
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+
+/* ============ START ============ */
+window.addEventListener('load', () => {
+  if (!hasPIN()) startSetup();
+  else startLock();
+});
+</script>
+</body>
+</html>
