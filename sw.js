@@ -1,22 +1,25 @@
-const CACHE = 'rgs2-v2';
+const CACHE = 'rgs-v1';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
 
-self.addEventListener('install', e => {
+// Install event — files ko cache karo
+self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', e => {
+// Activate event — purana cache delete karo
+self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', e => {
+// ✅ fetch event — YEH ZAROORI HAI install ke liye
+self.addEventListener('fetch', (e) => {
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html')))
+    caches.match(e.request).then((r) => r || fetch(e.request).catch(() => caches.match('./index.html')))
   );
 });
