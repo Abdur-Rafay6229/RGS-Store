@@ -18,9 +18,13 @@
   body { background:#f0f2f5; max-width:600px; margin:0 auto; padding:60px 15px 80px; -webkit-text-size-adjust:100%; }
   body.urdu { font-size:16px; }
   .urdu .lang-btn { right:auto; left:10px; }
-  .header { background:#1a73e8; color:#fff; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px; }
+  .header { background:#1a73e8; color:#fff; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px; position:relative; }
   .header h1 { font-size:20px; }
   .header p { font-size:12px; opacity:.9; }
+  .header .paid-badge { position:absolute; top:10px; right:10px; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:bold; }
+  .badge-paid { background:#28a745; color:#fff; }
+  .badge-partial { background:#f9ab00; color:#fff; }
+  .badge-due { background:#dc3545; color:#fff; }
   .summary { display:flex; gap:10px; margin-bottom:15px; }
   .summary div { flex:1; padding:10px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.1); background:#fff; }
   .summary b { display:block; font-size:18px; color:#1a73e8; }
@@ -31,11 +35,13 @@
   .btn.dark { background:#202124; }
   .btn.gray { background:#5f6368; }
   .btn.small { width:auto; padding:6px 12px; font-size:13px; }
+  .btn.tiny { width:auto; padding:4px 8px; font-size:12px; }
   .lang-btn { position:fixed; top:10px; right:10px; z-index:99; width:auto; padding:8px 14px; }
-  .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); cursor:pointer; }
+  .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); cursor:pointer; position:relative; }
   .card h3 { font-size:16px; margin-bottom:5px; }
   .card .meta { font-size:12px; color:#666; margin-bottom:5px; }
   .card .row { display:flex; justify-content:space-between; gap:8px; font-size:14px; align-items:center; }
+  .card .card-badge { position:absolute; top:10px; right:10px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:bold; color:#fff; }
   .pending { color:#dc3545; font-weight:bold; }
   .paid { color:#28a745; }
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; color:#fff; }
@@ -75,11 +81,45 @@
   .setup-box { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); width:100%; max-width:340px; }
   .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
   .status-dot.on { background:#28a745; } .status-dot.off { background:#dc3545; }
+
+  /* ===== SUPPLIER PRODUCTS ===== */
+  .product-card { background:#fafbfc; border:1px solid #e1e5ea; border-radius:8px; padding:10px; margin-bottom:10px; }
+  .product-card .prod-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .product-card .prod-head h4 { font-size:14px; color:#1a73e8; }
+  .product-card .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .product-card .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  .product-card input, .product-card select { padding:8px; font-size:13px; }
+
+  /* ===== PHOTOS ===== */
+  .photo-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .photo-thumb { width:70px; height:70px; border-radius:6px; overflow:hidden; position:relative; background:#eee; }
+  .photo-thumb img { width:100%; height:100%; object-fit:cover; cursor:pointer; }
+  .photo-thumb .photo-x { position:absolute; top:2px; right:2px; background:rgba(220,53,69,.9); color:#fff; border:none; width:20px; height:20px; border-radius:50%; font-size:12px; cursor:pointer; padding:0; line-height:1; }
+  .photo-btns { display:flex; gap:6px; margin-top:6px; }
+  .photo-btns button { flex:1; padding:8px; font-size:12px; border-radius:6px; border:none; cursor:pointer; }
+
+  /* ===== PHOTO VIEWER ===== */
+  .viewer-overlay { position:fixed; inset:0; background:#000; z-index:9999; display:flex; flex-direction:column; }
+  .viewer-top { display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:rgba(0,0,0,.7); color:#fff; }
+  .viewer-top button { background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 14px; border-radius:20px; font-size:14px; cursor:pointer; }
+  .viewer-body { flex:1; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; touch-action:none; }
+  .viewer-img { max-width:100%; max-height:100%; transition:transform .05s; user-select:none; -webkit-user-drag:none; }
+  .viewer-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.2); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:22px; cursor:pointer; }
+  .viewer-nav.prev { left:12px; }
+  .viewer-nav.next { right:12px; }
+  .viewer-info { text-align:center; padding:10px; color:#fff; font-size:12px; background:rgba(0,0,0,.7); }
+
+  /* ===== FILTER BAR ===== */
+  .filter-bar { background:#fff; border-radius:8px; padding:8px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  .filter-bar select { padding:8px; font-size:13px; margin-bottom:6px; }
+  .filter-bar .custom-range { display:flex; gap:6px; }
+  .filter-bar .custom-range input { padding:8px; font-size:12px; }
+  .filter-bar .filter-summary { font-size:12px; color:#666; margin-top:6px; text-align:center; }
 </style>
 </head>
 <body>
 
-<!-- ============ SETUP SCREEN (first time) ============ -->
+<!-- SETUP -->
 <div id="setupScreen" class="lock-wrap hidden">
   <div class="setup-box">
     <div class="lock-icon">🏪</div>
@@ -94,7 +134,7 @@
   </div>
 </div>
 
-<!-- ============ LOCK SCREEN ============ -->
+<!-- LOCK -->
 <div id="lockScreen" class="lock-wrap hidden">
   <div class="lock-icon">🔒</div>
   <div class="lock-title" id="lockTitle">Enter PIN</div>
@@ -107,12 +147,12 @@
   <button class="bio-btn hidden" id="bioUnlockBtn" onclick="tryBiometric()">👆 Unlock with Fingerprint / Face</button>
 </div>
 
-<!-- ============ LOGIN SCREEN (cloud) ============ -->
+<!-- LOGIN -->
 <div id="loginScreen" class="lock-wrap hidden">
   <div class="setup-box">
     <div class="lock-icon">☁️</div>
     <div class="lock-title">Sign in to Cloud</div>
-    <div class="lock-sub">Backup your data safely</div>
+    <div class="lock-sub">Backup your data safely (photos ke liye zaroori)</div>
     <label>Email</label>
     <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
@@ -124,7 +164,7 @@
   </div>
 </div>
 
-<!-- ============ MAIN APP (existing screens) ============ -->
+<!-- CUSTOMER LIST -->
 <div id="listScreen">
   <div class="header"><h1 id="t-store">Rajpoot General Store</h1><p id="t-sub">Customer Bills Manager</p></div>
   <div class="summary">
@@ -139,21 +179,22 @@
   <div id="billList"></div>
 </div>
 
+<!-- CUSTOMER FORM -->
 <div id="formScreen" class="hidden">
   <div class="header"><h1 id="t-formtitle">New Bill</h1></div>
   <label id="t-cname">Customer Name</label><input id="f-name" type="text" autocomplete="off">
   <label id="t-bdate">Bill Date</label><input id="f-date" type="date">
   <label id="t-ptype">Payment Type</label>
   <select id="f-ptype">
-    <option id="t-ptcash" value="cash">Cash</option>
-    <option id="t-ptonline" value="online">Online</option>
-    <option id="t-ptcredit" value="credit">Credit</option>
+    <option value="cash">Cash</option>
+    <option value="online">Online</option>
+    <option value="credit">Credit</option>
   </select>
   <label id="t-items">Items (Name | Qty | Rate)</label>
   <div id="itemsBox"></div>
   <button class="btn small" onclick="addItemRow()">+ <span id="t-additem">Add Item</span></button>
   <div class="total-box"><span id="t-total">Total</span>: Rs. <span id="f-total">0</span></div>
-  <div class="total-box hidden" id="f-already"><span id="t-already">Already Paid</span>: Rs. <span id="f-epaid">0</span></div>
+  <div class="total-box hidden" id="f-already"><span>Already Paid</span>: Rs. <span id="f-epaid">0</span></div>
   <label id="t-apaid">Amount Paid</label><input id="f-paid" type="number" min="0" value="0" oninput="calcTotal()">
   <label id="t-apdate">Payment Date</label><input id="f-paiddate" type="date">
   <div class="total-box pending"><span id="t-tpending">Pending</span>: Rs. <span id="f-pending">0</span></div>
@@ -161,17 +202,18 @@
   <button class="btn" onclick="showList()">← <span id="t-back">Back</span></button>
 </div>
 
+<!-- CUSTOMER DETAIL -->
 <div id="detailScreen" class="hidden">
   <div class="header"><h1 id="d-name"></h1></div>
   <div class="card" id="d-details"></div>
   <button class="btn" onclick="editBill()">✏️ <span id="t-editbill">Edit Bill</span></button>
-  <button class="btn" onclick="addMoreItems()">+ <span id="t-moreitems">Add More Items to This Bill</span></button>
-  <button class="btn green" onclick="addPayment()">💰 <span id="t-addpay">Add Payment (Khata Adjustment)</span></button>
+  <button class="btn green" onclick="addPayment()">💰 <span id="t-addpay">Add Payment</span></button>
   <button class="btn green" onclick="shareWhatsApp()">📲 <span id="t-share">Share on WhatsApp</span></button>
   <button class="btn red" onclick="deleteBill()">🗑 <span id="t-del">Delete Bill</span></button>
   <button class="btn" onclick="showList()">← <span id="t-back2">Back</span></button>
 </div>
 
+<!-- SUPPLIER LIST -->
 <div id="supListScreen" class="hidden">
   <div class="header"><h1 id="t-suphead">Supplier Management</h1><p id="t-supsub">Supplier Bills & Payments</p></div>
   <div class="summary">
@@ -179,40 +221,113 @@
     <div><span id="t-supdue">Total Dues</span><b id="totalDue">0</b></div>
   </div>
   <button class="btn" onclick="newSupBill()">+ <span id="t-newsupbill">New Supplier Bill</span></button>
-  <input id="supSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderSupplierList()">
+  <button class="btn dark" onclick="openOpeningsManager()">💰 Manage Opening Balances</button>
+  <div class="filter-bar">
+    <select id="supDateFilter" onchange="onFilterChange()">
+      <option value="all">📅 All Time</option>
+      <option value="thisMonth">This Month</option>
+      <option value="lastMonth">Last Month</option>
+      <option value="last3">Last 3 Months</option>
+      <option value="thisYear">This Year</option>
+      <option value="custom">Custom Range</option>
+    </select>
+    <div class="custom-range hidden" id="customRangeBox">
+      <input type="date" id="customFrom" onchange="renderSupplierList()">
+      <input type="date" id="customTo" onchange="renderSupplierList()">
+    </div>
+    <div class="filter-summary" id="filterSummary"></div>
+  </div>
+  <input id="supSearch" class="search" type="search" placeholder="Search name / order / date..." oninput="renderSupplierList()">
   <div id="supList"></div>
   <button class="btn" onclick="showList()">← <span id="t-custbills">Customer Bills</span></button>
 </div>
 
+<!-- SUPPLIER FORM (NEW) -->
 <div id="supFormScreen" class="hidden">
   <div class="header"><h1 id="t-supformtitle">New Supplier Bill</h1></div>
-  <label id="t-supname">Supplier Name</label><input id="s-name" type="text" autocomplete="off">
-  <label id="t-supbdate">Bill Date</label><input id="s-date" type="date">
-  <label id="t-supdesc">Description / Invoice No.</label><input id="s-desc" type="text" autocomplete="off">
-  <label id="t-supamount">Bill Amount (Rs.)</label><input id="s-amount" type="number" min="0" oninput="supCalc()">
-  <div class="total-box hidden" id="s-already"><span id="t-already2">Already Paid</span>: Rs. <span id="s-epaid">0</span></div>
-  <label id="t-suppaidamt">Amount Paid Now (Rs.)</label><input id="s-paid" type="number" min="0" value="0" oninput="supCalc()">
-  <label id="t-suppaydate">Payment Date</label><input id="s-paiddate" type="date">
-  <div class="total-box"><span id="t-suptotal">Total</span>: Rs. <span id="s-total">0</span></div>
-  <div class="total-box pending"><span id="t-supdue2">Dues (Hum ne dena hai)</span>: Rs. <span id="s-pending">0</span></div>
-  <button class="btn" onclick="saveSupBill()">💾 <span id="t-supsave">Save Supplier Bill</span></button>
-  <button class="btn" onclick="showSupplierList()">← <span id="t-supback">Back</span></button>
+
+  <label>Supplier Name</label>
+  <input id="s-name" type="text" autocomplete="off" oninput="onSupplierNameChange()" onblur="onSupplierNameChange()">
+
+  <label>Bill Date</label>
+  <input id="s-date" type="date">
+
+  <label>Delivery Date</label>
+  <input id="s-delivery" type="date">
+
+  <label>Order No.</label>
+  <input id="s-orderno" type="text" autocomplete="off" placeholder="e.g. #1234">
+
+  <label>Payment Type</label>
+  <select id="s-ptype">
+    <option value="credit">Credit (Khata)</option>
+    <option value="cash">Cash</option>
+    <option value="online">Online</option>
+  </select>
+
+  <div class="total-box hidden" id="s-opening-box" style="background:#fff4e5">
+    Previous Dues (Opening Balance): Rs. <span id="s-opening-val">0</span>
+    <button class="btn small" style="margin-top:6px;background:#f9ab00" onclick="editOpeningForCurrent()">✏️ Change</button>
+  </div>
+
+  <label style="margin-top:12px;font-weight:bold">Products</label>
+  <div id="productsBox"></div>
+  <button class="btn small" onclick="addProductRow()">+ Add Product</button>
+
+  <div class="total-box hidden" id="s-already"><span>Already Paid</span>: Rs. <span id="s-epaid">0</span></div>
+  <label>Amount Paid Now (Rs.)</label>
+  <input id="s-paid" type="number" min="0" value="0" oninput="supCalc()">
+  <label>Payment Date</label>
+  <input id="s-paiddate" type="date">
+
+  <div class="total-box"><span>This Bill Total</span>: Rs. <span id="s-total">0</span></div>
+  <div class="total-box hidden" id="s-prev-box" style="background:#fff4e5"><span>Previous Dues</span>: Rs. <span id="s-prev">0</span></div>
+  <div class="total-box" style="background:#e8f0fe"><span>Grand Total</span>: Rs. <span id="s-grand">0</span></div>
+  <div class="total-box pending"><span>Total Dues (after this payment)</span>: Rs. <span id="s-pending">0</span></div>
+
+  <button class="btn" onclick="saveSupBill()">💾 Save Supplier Bill</button>
+  <button class="btn" onclick="showSupplierList()">← Back</button>
 </div>
 
+<!-- SUPPLIER DETAIL (NEW) -->
 <div id="supDetailScreen" class="hidden">
-  <div class="header"><h1 id="sd-name"></h1></div>
-  <div class="card" id="sd-details"></div>
-  <button class="btn" onclick="editSupBill()">✏️ <span id="t-editsup">Edit Supplier Bill</span></button>
-  <button class="btn green" onclick="addSupPayment()">💰 <span id="t-supaddpay">Pay to Supplier</span></button>
-  <button class="btn green" onclick="shareSupWhatsApp()">📲 <span id="t-supshare">Share on WhatsApp</span></button>
-  <button class="btn red" onclick="deleteSupBill()">🗑 <span id="t-supdel">Delete Bill</span></button>
-  <button class="btn" onclick="showSupplierList()">← <span id="t-supback2">Back</span></button>
+  <div class="header" id="sd-header">
+    <h1 id="sd-name"></h1>
+    <span class="paid-badge hidden" id="sd-badge"></span>
+  </div>
+  <div class="card" id="sd-details" style="cursor:default"></div>
+  <button class="btn" onclick="editSupBill()">✏️ Edit Bill</button>
+  <button class="btn green" onclick="addSupPayment()">💰 Pay to Supplier</button>
+  <button class="btn green" onclick="shareSupWhatsApp()">📲 Share on WhatsApp</button>
+  <button class="btn red" onclick="deleteSupBill()">🗑 Delete Bill</button>
+  <button class="btn" onclick="showSupplierList()">← Back</button>
 </div>
 
-<!-- ============ SETTINGS SCREEN (new) ============ -->
+<!-- OPENINGS MANAGER -->
+<div id="openingsScreen" class="hidden">
+  <div class="header"><h1>💰 Opening Balances</h1><p style="font-size:12px;opacity:.9">Purana hisaab jo bill se pehle se chal raha tha</p></div>
+  <div id="openingsList"></div>
+  <button class="btn" onclick="addNewOpening()">+ Add New Supplier Opening</button>
+  <button class="btn" onclick="showSupplierList()">← Back</button>
+</div>
+
+<!-- PHOTO VIEWER -->
+<div id="photoViewer" class="viewer-overlay hidden">
+  <div class="viewer-top">
+    <span id="viewerCounter">1 / 1</span>
+    <button onclick="closeViewer()">✕ Close</button>
+  </div>
+  <div class="viewer-body" id="viewerBody">
+    <button class="viewer-nav prev" id="viewerPrev" onclick="viewerNav(-1)">‹</button>
+    <img class="viewer-img" id="viewerImg" src="" alt="">
+    <button class="viewer-nav next" id="viewerNext" onclick="viewerNav(1)">›</button>
+  </div>
+  <div class="viewer-info">Pinch / scroll to zoom • Double-tap to reset</div>
+</div>
+
+<!-- SETTINGS -->
 <div id="settingsScreen" class="hidden">
   <div class="header"><h1>⚙️ Settings</h1></div>
-
   <div class="card" style="cursor:default">
     <h3>🔒 App Lock</h3>
     <div class="row" style="margin-top:8px"><span>PIN Lock</span><span id="pinStatus">—</span></div>
@@ -220,35 +335,33 @@
     <button class="btn small" style="margin-top:10px" onclick="changePin()">Change PIN</button>
     <button class="btn small" style="margin-top:5px" onclick="toggleBiometric()">Toggle Biometric</button>
   </div>
-
   <div class="card" style="cursor:default">
     <h3>☁️ Cloud Backup</h3>
     <div class="row" style="margin-top:8px"><span>Status</span><span id="cloudStatus">Not signed in</span></div>
     <div class="row"><span>Last sync</span><span id="lastSync">—</span></div>
     <button class="btn small" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign In</button>
-    <button class="btn small green" style="margin-top:5px hidden" id="syncBtn" onclick="syncNow()">Sync Now</button>
+    <button class="btn small green hidden" style="margin-top:5px" id="syncBtn" onclick="syncNow()">Sync Now</button>
   </div>
-
   <div class="card" style="cursor:default">
     <h3>📤 Data</h3>
     <button class="btn small" style="margin-top:10px" onclick="exportData()">Export Backup (JSON)</button>
     <button class="btn small gray" style="margin-top:5px" onclick="document.getElementById('importFile').click()">Import Backup</button>
     <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
   </div>
-
   <button class="btn" onclick="showList()">← Back to App</button>
 </div>
 
-<!-- ============ FIREBASE SDK ============ -->
+<!-- hidden file inputs for photo pickers -->
+<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="galInput" accept="image/*" class="hidden">
+
+<!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
 <script>
-/* =========================================================
-   🔥 FIREBASE CONFIG — apni values yahan paste karo
-   (Setup steps neeche diye hain)
-========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -260,19 +373,18 @@ const firebaseConfig = {
 };
 
 let firebaseReady = false;
-let fbAuth = null, fbDb = null;
+let fbAuth = null, fbDb = null, fbStorage = null;
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
     firebase.initializeApp(firebaseConfig);
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
+    try { fbStorage = firebase.storage(); } catch(e) { console.warn('Storage not available', e); }
     firebaseReady = true;
   }
 } catch (e) { console.warn('Firebase init failed:', e); }
 
-/* =========================================================
-   🔐 PIN + BIOMETRIC SECURITY
-========================================================= */
+/* ============ SECURITY (PIN + BIOMETRIC) ============ */
 const PIN_KEY = 'rgs_pin_hash';
 const PIN_SALT = 'rgs_v1_salt_2024';
 const BIO_CRED_KEY = 'rgs_biometric_cred';
@@ -283,41 +395,31 @@ async function hashPin(pin) {
   const hash = await crypto.subtle.digest('SHA-256', buf);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-
 function hasPIN() { return !!localStorage.getItem(PIN_KEY); }
 function isBioEnabled() { return localStorage.getItem(BIO_ENABLED_KEY) === '1'; }
 function hasBioCred() { return !!localStorage.getItem(BIO_CRED_KEY); }
 
-/* ---- PIN keypad builder ---- */
 function buildKeypad(containerId, onDigit, onBack) {
   const box = document.getElementById(containerId);
   box.innerHTML = '';
-  const layout = ['1','2','3','4','5','6','7','8','9','bio','0','back'];
-  layout.forEach(k => {
+  ['1','2','3','4','5','6','7','8','9','bio','0','back'].forEach(k => {
     const b = document.createElement('button');
     if (k === 'bio') {
-      b.textContent = '👆';
-      b.className = 'wide';
+      b.textContent = '👆'; b.className = 'wide';
       b.onclick = () => tryBiometric();
-      b.id = containerId + '_bio';
       if (!isBioEnabled() || !hasBioCred()) b.style.visibility = 'hidden';
     } else if (k === 'back') {
-      b.textContent = '⌫';
-      b.onclick = () => onBack();
+      b.textContent = '⌫'; b.onclick = () => onBack();
     } else {
-      b.textContent = k;
-      b.onclick = () => onDigit(k);
+      b.textContent = k; b.onclick = () => onDigit(k);
     }
     box.appendChild(b);
   });
 }
-
 function updateDots(displayId, value) {
-  const dots = document.querySelectorAll('#' + displayId + ' .pin-dot');
-  dots.forEach((d, i) => d.classList.toggle('filled', i < value.length));
+  document.querySelectorAll('#' + displayId + ' .pin-dot').forEach((d, i) => d.classList.toggle('filled', i < value.length));
 }
 
-/* ---- FIRST TIME SETUP ---- */
 let setupPin1 = '';
 function startSetup() {
   setupPin1 = '';
@@ -326,129 +428,80 @@ function startSetup() {
   buildKeypad('setupKeypad',
     (d) => {
       if (setupPin1.length >= 4) return;
-      setupPin1 += d;
-      updateDots('setupPinDisplay', setupPin1);
-      if (setupPin1.length === 4) {
-        setTimeout(() => confirmSetupPin(), 150);
-      }
+      setupPin1 += d; updateDots('setupPinDisplay', setupPin1);
+      if (setupPin1.length === 4) setTimeout(() => confirmSetupPin(), 150);
     },
     () => { setupPin1 = setupPin1.slice(0, -1); updateDots('setupPinDisplay', setupPin1); }
   );
   showScreen('setupScreen');
 }
-
 async function confirmSetupPin() {
-  const pin1 = setupPin1;
-  setupPin1 = '';
+  const pin1 = setupPin1; setupPin1 = '';
   const pin2 = prompt('Confirm your 4-digit PIN:');
   if (pin2 === null) { startSetup(); return; }
-  if (pin1 !== pin2) {
-    document.getElementById('setupErr').textContent = 'PINs did not match. Try again.';
-    startSetup();
-    return;
-  }
+  if (pin1 !== pin2) { document.getElementById('setupErr').textContent = 'PINs did not match. Try again.'; startSetup(); return; }
   localStorage.setItem(PIN_KEY, await hashPin(pin1));
-  // Offer biometric
   if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()) {
-    if (confirm('Enable fingerprint / face unlock?')) {
-      await registerBiometric();
-    }
+    if (confirm('Enable fingerprint / face unlock?')) await registerBiometric();
   }
   showList();
 }
+function skipSetup() { if (confirm('Skip PIN? Your data will not be protected on this device.')) showList(); }
 
-function skipSetup() {
-  if (confirm('Skip PIN? Your data will not be protected on this device.')) {
-    showList();
-  }
-}
-
-/* ---- LOCK SCREEN ---- */
 let lockPin = '';
 let pinAttempts = 0;
-
 function startLock() {
   lockPin = '';
   updateDots('lockPinDisplay', '');
   document.getElementById('lockErr').textContent = '';
   const bioBtn = document.getElementById('bioUnlockBtn');
-  if (isBioEnabled() && hasBioCred()) bioBtn.classList.remove('hidden');
-  else bioBtn.classList.add('hidden');
-
+  if (isBioEnabled() && hasBioCred()) bioBtn.classList.remove('hidden'); else bioBtn.classList.add('hidden');
   buildKeypad('lockKeypad',
     (d) => {
       if (lockPin.length >= 4) return;
-      lockPin += d;
-      updateDots('lockPinDisplay', lockPin);
+      lockPin += d; updateDots('lockPinDisplay', lockPin);
       if (lockPin.length === 4) setTimeout(() => verifyPin(), 150);
     },
     () => { lockPin = lockPin.slice(0, -1); updateDots('lockPinDisplay', lockPin); }
   );
-
   showScreen('lockScreen');
-  if (isBioEnabled() && hasBioCred()) {
-    setTimeout(() => tryBiometric(), 400);
-  }
+  if (isBioEnabled() && hasBioCred()) setTimeout(() => tryBiometric(), 400);
 }
-
 async function verifyPin() {
-  const entered = lockPin;
-  lockPin = '';
+  const entered = lockPin; lockPin = '';
   const stored = localStorage.getItem(PIN_KEY);
   const hash = await hashPin(entered);
-  if (hash === stored) {
-    pinAttempts = 0;
-    updateDots('lockPinDisplay', '');
-    showList();
-  } else {
+  if (hash === stored) { pinAttempts = 0; updateDots('lockPinDisplay', ''); showList(); }
+  else {
     pinAttempts++;
     document.getElementById('lockErr').textContent = 'Wrong PIN. Try again. (' + pinAttempts + ')';
     updateDots('lockPinDisplay', '');
     if (navigator.vibrate) navigator.vibrate(200);
   }
 }
-
-/* ---- BIOMETRIC (WebAuthn) ---- */
 async function registerBiometric() {
-  if (!window.PublicKeyCredential) {
-    alert('Biometric not supported on this device/browser.');
-    return false;
-  }
+  if (!window.PublicKeyCredential) { alert('Biometric not supported.'); return false; }
   try {
     const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
     const userId = new Uint8Array(16); crypto.getRandomValues(userId);
     const cred = await navigator.credentials.create({
       publicKey: {
-        challenge,
-        rp: { name: 'RGS Store' },
+        challenge, rp: { name: 'RGS Store' },
         user: { id: userId, name: 'rgs-user', displayName: 'RGS User' },
-        pubKeyCredParams: [
-          { alg: -7, type: 'public-key' },
-          { alg: -257, type: 'public-key' }
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'preferred'
-        },
-        timeout: 60000,
-        attestation: 'none'
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+        timeout: 60000, attestation: 'none'
       }
     });
     if (cred) {
       const idB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
       localStorage.setItem(BIO_CRED_KEY, idB64);
       localStorage.setItem(BIO_ENABLED_KEY, '1');
-      alert('✅ Fingerprint / Face registered!');
-      return true;
+      alert('✅ Biometric registered!'); return true;
     }
-  } catch (e) {
-    console.warn('Biometric reg error:', e);
-    alert('Biometric setup failed or cancelled.');
-    return false;
-  }
+  } catch (e) { console.warn('Bio reg error:', e); alert('Biometric setup failed.'); }
+  return false;
 }
-
 async function tryBiometric() {
   const credIdB64 = localStorage.getItem(BIO_CRED_KEY);
   if (!credIdB64) { alert('Biometric not set up.'); return; }
@@ -456,410 +509,112 @@ async function tryBiometric() {
     const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
     const idBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
     const assertion = await navigator.credentials.get({
-      publicKey: {
-        challenge,
-        allowCredentials: [{ id: idBytes, type: 'public-key' }],
-        timeout: 60000,
-        userVerification: 'required'
-      }
+      publicKey: { challenge, allowCredentials: [{ id: idBytes, type: 'public-key' }], timeout: 60000, userVerification: 'required' }
     });
-    if (assertion) {
-      lockPin = '';
-      showList();
-    }
-  } catch (e) {
-    console.warn('Biometric auth failed:', e);
-    document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.';
-  }
+    if (assertion) { lockPin = ''; showList(); }
+  } catch (e) { document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.'; }
 }
 
-/* =========================================================
-   ⚙️ SETTINGS
-========================================================= */
-function openSettings() {
-  updateSettingsUI();
-  showScreen('settingsScreen');
-}
-
-function updateSettingsUI() {
-  document.getElementById('pinStatus').innerHTML = hasPIN()
-    ? '<span class="status-dot on"></span>Set'
-    : '<span class="status-dot off"></span>Not set';
-  document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred()
-    ? '<span class="status-dot on"></span>Enabled'
-    : '<span class="status-dot off"></span>Off';
-  if (firebaseReady && fbAuth) {
-    const u = fbAuth.currentUser;
-    document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
-    document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
-    document.getElementById('cloudBtn').onclick = u ? signOutCloud : () => showScreen('loginScreen');
-    document.getElementById('syncBtn').classList.toggle('hidden', !u);
-  } else {
-    document.getElementById('cloudStatus').textContent = 'Not configured';
-    document.getElementById('cloudBtn').textContent = 'Setup Required';
-    document.getElementById('cloudBtn').onclick = () => alert('Firebase config missing in index.html');
-  }
-  const ls = localStorage.getItem('rgs_last_sync');
-  document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
-}
-
-async function changePin() {
-  if (hasPIN()) {
-    const old = prompt('Enter current PIN:');
-    if (old === null) return;
-    if (await hashPin(old) !== localStorage.getItem(PIN_KEY)) { alert('Wrong PIN.'); return; }
-  }
-  const np1 = prompt('New 4-digit PIN:');
-  if (!np1 || np1.length !== 4) { alert('PIN must be 4 digits.'); return; }
-  const np2 = prompt('Confirm new PIN:');
-  if (np1 !== np2) { alert('PINs do not match.'); return; }
-  localStorage.setItem(PIN_KEY, await hashPin(np1));
-  alert('✅ PIN updated.');
-  updateSettingsUI();
-}
-
-async function toggleBiometric() {
-  if (isBioEnabled() && hasBioCred()) {
-    if (confirm('Disable biometric unlock?')) {
-      localStorage.removeItem(BIO_CRED_KEY);
-      localStorage.removeItem(BIO_ENABLED_KEY);
-      alert('Biometric disabled.');
-    }
-  } else {
-    await registerBiometric();
-  }
-  updateSettingsUI();
-}
-
-/* =========================================================
-   ☁️ CLOUD (Firebase Auth + Firestore)
-========================================================= */
-async function doLogin() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  document.getElementById('loginErr').textContent = '';
-  try {
-    await fbAuth.signInWithEmailAndPassword(email, pass);
-    await pullFromCloud();
-    alert('✅ Signed in! Data synced.');
-    showList();
-  } catch (e) {
-    document.getElementById('loginErr').textContent = e.message || 'Login failed';
-  }
-}
-
-async function doSignup() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  document.getElementById('loginErr').textContent = '';
-  if (pass.length < 6) { document.getElementById('loginErr').textContent = 'Password min 6 chars'; return; }
-  try {
-    await fbAuth.createUserWithEmailAndPassword(email, pass);
-    await pushToCloud();
-    alert('✅ Account created & data backed up!');
-    showList();
-  } catch (e) {
-    document.getElementById('loginErr').textContent = e.message || 'Signup failed';
-  }
-}
-
-async function signOutCloud() {
-  if (!firebaseReady) return;
-  if (!confirm('Sign out? Local data will stay, but cloud sync will stop.')) return;
-  await fbAuth.signOut();
-  updateSettingsUI();
-  alert('Signed out.');
-}
-
-function handleCloud() {
-  if (!firebaseReady) { alert('Firebase config missing.'); return; }
-  if (fbAuth.currentUser) signOutCloud();
-  else showScreen('loginScreen');
-}
-
-async function pushToCloud() {
-  if (!firebaseReady || !fbAuth.currentUser) return false;
-  const uid = fbAuth.currentUser.uid;
-  try {
-    await fbDb.collection('stores').doc(uid).set({
-      bills: bills,
-      supBills: supBills,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      email: fbAuth.currentUser.email
-    });
-    localStorage.setItem('rgs_last_sync', new Date().toISOString());
-    return true;
-  } catch (e) {
-    console.warn('Push failed:', e);
-    return false;
-  }
-}
-
-async function pullFromCloud() {
-  if (!firebaseReady || !fbAuth.currentUser) return false;
-  const uid = fbAuth.currentUser.uid;
-  try {
-    const doc = await fbDb.collection('stores').doc(uid).get();
-    if (doc.exists) {
-      const d = doc.data();
-      if (Array.isArray(d.bills)) bills = d.bills;
-      if (Array.isArray(d.supBills)) supBills = d.supBills;
-      saveToStorage(); supSave();
-      localStorage.setItem('rgs_last_sync', new Date().toISOString());
-      return true;
-    }
-    return false;
-  } catch (e) {
-    console.warn('Pull failed:', e);
-    return false;
-  }
-}
-
-async function syncNow() {
-  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
-  if (!confirm('Sync? This will overwrite cloud data with your local data.')) return;
-  const ok = await pushToCloud();
-  if (ok) { alert('✅ Synced to cloud.'); updateSettingsUI(); }
-  else alert('❌ Sync failed.');
-}
-
-/* Auto-sync after each change (silent) */
-let syncTimer = null;
-function scheduleAutoSync() {
-  if (!firebaseReady || !fbAuth || !fbAuth.currentUser) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => pushToCloud(), 3000);
-}
-
-/* =========================================================
-   📤 EXPORT / IMPORT
-========================================================= */
-function exportData() {
-  const data = { bills, supBills, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'rgs-backup-' + today() + '.json';
-  a.click();
-}
-
-function importData(ev) {
-  const f = ev.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = () => {
-    try {
-      const d = JSON.parse(r.result);
-      if (!Array.isArray(d.bills) || !Array.isArray(d.supBills)) throw new Error('Invalid');
-      if (!confirm('Replace all current data with backup?')) return;
-      bills = d.bills; supBills = d.supBills;
-      saveToStorage(); supSave();
-      alert('✅ Imported.');
-      showList();
-    } catch (e) { alert('Invalid backup file.'); }
-  };
-  r.readAsText(f);
-  ev.target.value = '';
-}
-
-/* =========================================================
-   EXISTING APP CODE (unchanged)
-========================================================= */
+/* ============ HELPERS ============ */
 function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
 function today() {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 function readJSON(key) {
-  try {
-    const v = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(v) ? v : [];
-  } catch (e) { return []; }
+  try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
 }
 function safeSet(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); return true; }
   catch (e) { alert('⚠️ Storage full.'); return false; }
 }
+function escapeHtml(v = '') {
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatMoney(v) { return Number(v || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 }); }
+function toNumber(v) { const n = Number(v); return isFinite(n) && n > 0 ? n : 0; }
+function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : today(); }
+function isDataUrl(s) { return typeof s === 'string' && s.startsWith('data:'); }
+function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+
+/* ============ STORAGE ============ */
 function loadBills() {
-  let changed = false;
-  const list = readJSON('rgs_bills').map(bill => {
-    if (!bill || typeof bill !== 'object') { changed = true; return null; }
-    if (!bill.id) { bill.id = uid(); changed = true; }
-    if (!Array.isArray(bill.items)) { bill.items = []; changed = true; }
-    if (!Array.isArray(bill.payments)) {
-      bill.payments = [];
-      if (Number(bill.paid) > 0) bill.payments.push({ amount: Number(bill.paid), date: bill.paidDate || bill.date || '' });
-      changed = true;
-    }
+  return readJSON('rgs_bills').map(bill => {
+    if (!bill || typeof bill !== 'object') return null;
+    if (!bill.id) bill.id = uid();
+    if (!Array.isArray(bill.items)) bill.items = [];
+    if (!Array.isArray(bill.payments)) bill.payments = [];
     return bill;
   }).filter(Boolean);
-  if (changed) safeSet('rgs_bills', list);
-  return list;
 }
 function loadSupBills() {
-  let changed = false;
-  const list = readJSON('rgs_suppliers').map(b => {
-    if (!b || typeof b !== 'object') { changed = true; return null; }
-    if (!b.id) { b.id = uid(); changed = true; }
-    if (!Array.isArray(b.payments)) {
-      b.payments = [];
-      if (Number(b.paid) > 0) b.payments.push({ amount: Number(b.paid), date: b.paidDate || b.date || '' });
-      changed = true;
+  return readJSON('rgs_suppliers').map(b => {
+    if (!b || typeof b !== 'object') return null;
+    if (!b.id) b.id = uid();
+    if (!Array.isArray(b.payments)) b.payments = [];
+    if (!Array.isArray(b.products)) {
+      b.products = [];
+      if (b.amount) {
+        b.products.push({
+          name: b.desc || 'Bill',
+          qtyCartons: 0, rateCartons: 0,
+          qtyUnits: 0, rateUnits: Number(b.amount) || 0,
+          unitType: '', photos: []
+        });
+      }
     }
+    if (typeof b.ptype !== 'string') b.ptype = 'credit';
+    if (typeof b.deliveryDate !== 'string') b.deliveryDate = '';
+    if (typeof b.orderNo !== 'string') b.orderNo = '';
+    // Ensure photos array on each product
+    b.products.forEach(p => { if (!Array.isArray(p.photos)) p.photos = []; });
     return b;
   }).filter(Boolean);
-  if (changed) safeSet('rgs_suppliers', list);
-  return list;
+}
+function loadOpenings() {
+  try {
+    const v = JSON.parse(localStorage.getItem('rgs_supplier_openings') || '{}');
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  } catch { return {}; }
 }
 
 let bills = loadBills();
 let supBills = loadSupBills();
+let supplierOpenings = loadOpenings();
+
 let currentBillId = null, currentSupId = null;
 let editingId = null, editingSupId = null;
 let editExistingPaid = 0, supExistingPaid = 0;
-let urdu = false, formTitleKey = 'formtitle', supFormTitleKey = 'supformtitle';
+let currentSupOpening = 0;
+let formTitleKey = 'formtitle', supFormTitleKey = 'supformtitle';
 
 function saveToStorage() { const ok = safeSet('rgs_bills', bills); if (ok) scheduleAutoSync(); return ok; }
 function supSave() { const ok = safeSet('rgs_suppliers', supBills); if (ok) scheduleAutoSync(); return ok; }
+function saveOpenings() { const ok = safeSet('rgs_supplier_openings', supplierOpenings); if (ok) scheduleAutoSync(); return ok; }
 function getBill() { return bills.find(b => b.id === currentBillId) || null; }
 function getSup() { return supBills.find(b => b.id === currentSupId) || null; }
 function screenVisible(id) { return !document.getElementById(id).classList.contains('hidden'); }
 
 window.addEventListener('storage', (e) => {
-  if (e.key === 'rgs_bills') {
-    bills = loadBills();
-    if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
-    else if (screenVisible('listScreen')) renderList();
-  }
+  if (e.key === 'rgs_bills') { bills = loadBills(); if (screenVisible('listScreen')) renderList(); }
   if (e.key === 'rgs_suppliers') {
     supBills = loadSupBills();
-    if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
-    else if (screenVisible('supListScreen')) renderSupplierList();
+    if (screenVisible('supListScreen')) renderSupplierList();
+    else if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
   }
 });
 
-function escapeHtml(value = '') {
-  return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-function formatMoney(value) { return Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 }); }
-function toNumber(value) { const n = Number(value); return isFinite(n) && n > 0 ? n : 0; }
-function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : today(); }
-
-/* ============ TRANSLATION ============ */
-const T = {
-  store:['Rajpoot General Store','راجپوٹ جنرل سٹور'],
-  sub:['Customer Bills Manager','کسٹمر بل منیجر'],
-  bills:['Total Bills','کل بلز'],
-  pending:['Total Pending','کل بقایا'],
-  newbill:['New Bill','نیا بل'],
-  formtitle:['New Bill','نیا بل'],
-  cname:['Customer Name','کسٹمر کا نام'],
-  bdate:['Bill Date','بل کی تاریخ'],
-  ptype:['Payment Type','پیمنٹ کی قسم'],
-  items:['Items (Name | Qty | Rate)','آئٹمز (نام | مقدار | ریٹ)'],
-  additem:['Add Item','آئٹم شامل کریں'],
-  total:['Total','کل'],
-  apaid:['Amount Paid','ادا شدہ رقم'],
-  apdate:['Payment Date','پیمنٹ کی تاریخ'],
-  tpending:['Pending','بقایا'],
-  save:['Save Bill','بل محفوظ کریں'],
-  back:['Back','واپس'],
-  moreitems:['Add More Items to This Bill','اس بل میں مزید آئٹمز شامل کریں'],
-  addpay:['Add Payment (Khata Adjustment)','پیمنٹ شامل کریں (کھاتہ ایڈجسٹمنٹ)'],
-  share:['Share on WhatsApp','واٹس ایپ پر شیئر کریں'],
-  del:['Delete Bill','بل ڈیلیٹ کریں'],
-  back2:['Back','واپس'],
-  editbill:['Edit Bill','بل ایڈیٹ کریں'],
-  payments:['Payment History','پیمنٹ کی ہسٹری'],
-  overpay:['Amount is more than pending. Extra will not be counted. Continue?','رقم بقایا سے زیادہ ہے۔ ایکسٹرا شمار نہیں ہوگا۔ کیا آپ جاری رکھنا چاہتے ہیں؟'],
-  overpaySave:['Amount Paid is more than Total. Extra will not be counted.','ادا شدہ رقم کل سے زیادہ ہے۔ ایکسٹرا شمار نہیں ہوگا۔'],
-  already:['Already Paid','پہلے ادا شدہ'],
-  already2:['Already Paid','پہلے ادا شدہ'],
-  clear:['Clear','واضحہ'],
-  dues:['Dues','احتساب'],
-  paidlabel:['Paid','ادا شدہ'],
-  search:['Search name or date...','نام یا تاریخ تلاش کریں...'],
-  suppliers:['Suppliers','سپلائرز'],
-  custbills:['Customer Bills','کسٹمر بلز'],
-  suphead:['Supplier Management','سپلائر مینجمنٹ'],
-  supsub:['Supplier Bills & Payments','سپلائر بلز اور ادائیگیاں'],
-  sups:['Suppliers','سپلائرز'],
-  supdue:['Total Dues','کل احتساب'],
-  newsupbill:['New Supplier Bill','نیا سپلائر بل'],
-  supname:['Supplier Name','سپلائر کا نام'],
-  supbdate:['Bill Date','بل کی تاریخ'],
-  supdesc:['Description / Invoice No.','تفصیل / انوائس نمبر'],
-  supamount:['Bill Amount (Rs.)','بل کی رقم (روپے)'],
-  suppaidamt:['Amount Paid Now (Rs.)','ابھی ادا شدہ رقم (روپے)'],
-  suppaydate:['Payment Date','پیمنٹ کی تاریخ'],
-  suptotal:['Total','کل'],
-  supdue2:['Dues (Hum ne dena hai)','احتساب (ہم نے دینا ہے)'],
-  supsave:['Save Supplier Bill','سپلائر بل محفوظ کریں'],
-  supback:['Back','واپس'],
-  supback2:['Back','واپس'],
-  supformtitle:['New Supplier Bill','نیا سپلائر بل'],
-  editsup:['Edit Supplier Bill','سپلائر بل ایڈیٹ کریں'],
-  supaddpay:['Pay to Supplier','سپلائر کو ادائیگی کریں'],
-  supshare:['Share on WhatsApp','واٹس ایپ پر شیئر کریں'],
-  supdel:['Delete Bill','بل ڈیلیٹ کریں'],
-  invoice:['Invoice','انوائس'],
-  ptcash:['Cash','نقد'],
-  ptonline:['Online','آن لائن'],
-  ptcredit:['Credit','کھاتہ'],
-  install:['Install App','ایپ انسٹال کریں'],
-  settings:['Settings','سیٹنگز'],
-  needName:['Please write customer name','کسٹمر کا نام لکھیں'],
-  needItem:['Add at least 1 item (name + qty)','کم از کم 1 آئٹم دیں (نام + مقدار)'],
-  needSupName:['Please write supplier name','سپلائر کا نام لکھیں'],
-  needAmount:['Enter bill amount','بل کی رقم درج کریں'],
-  delPayment:['Delete this payment?','یہ پیمنٹ ڈیلیٹ کریں؟'],
-  delBill:['Delete this bill permanently?','یہ بل ہمیشہ کے لیے ڈیلیٹ کریں؟'],
-  delSupBill:['Delete this supplier bill permanently?','یہ سپلائر بل ہمیشہ کے لیے ڈیلیٹ کریں؟'],
-  noPending:['No pending!','کوئی بقایا نہیں!'],
-  noDues:['No dues!','کوئی احتساب نہیں!'],
-  payPrompt:['Payment amount (Pending: Rs. ','پیمنٹ کی رقم (بقایا: روپے '],
-  duePrompt:['Payment amount (Dues: Rs. ','پیمنٹ کی رقم (احتساب: روپے '],
-  datePrompt:['Payment date (YYYY-MM-DD):','پیمنٹ کی تاریخ (YYYY-MM-DD):']
-};
-
-function getText(key) { return T[key] ? T[key][urdu ? 1 : 0] : key; }
-function typeLabel(ptype) { const key = 'pt' + ptype; return T[key] ? getText(key) : (ptype || ''); }
-function typeClass(ptype) { return ['cash', 'online', 'credit'].includes(ptype) ? ptype : ''; }
-
-function toggleLang() {
-  urdu = !urdu;
-  document.body.classList.toggle('urdu', urdu);
-  document.documentElement.dir = urdu ? 'rtl' : 'ltr';
-  for (const key in T) {
-    const el = document.getElementById('t-' + key);
-    if (el) el.textContent = T[key][urdu ? 1 : 0];
-  }
-  const bs = document.getElementById('billSearch'); if (bs) bs.placeholder = getText('search');
-  const ss = document.getElementById('supSearch'); if (ss) ss.placeholder = getText('search');
-  refreshCurrentScreen();
-}
-
-function refreshCurrentScreen() {
-  if (screenVisible('listScreen')) renderList();
-  else if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
-  else if (screenVisible('supListScreen')) renderSupplierList();
-  else if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
-  else if (screenVisible('formScreen')) document.getElementById('t-formtitle').textContent = getText(formTitleKey);
-  else if (screenVisible('supFormScreen')) document.getElementById('t-supformtitle').textContent = getText(supFormTitleKey);
-}
-
+/* ============ SCREEN NAV ============ */
+const ALL_SCREENS = ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen','openingsScreen'];
 function showScreen(screen) {
-  ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen']
-    .forEach((id) => document.getElementById(id).classList.add('hidden'));
+  ALL_SCREENS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById(screen).classList.remove('hidden');
   window.scrollTo(0, 0);
 }
 
-/* ============ CUSTOMER LIST ============ */
+/* ============ CUSTOMER: LIST ============ */
 function showList() { currentBillId = null; showScreen('listScreen'); renderList(); }
-
 function renderList() {
   const list = document.getElementById('billList');
   const q = (document.getElementById('billSearch').value || '').trim().toLowerCase();
@@ -874,28 +629,28 @@ function renderList() {
     const card = document.createElement('div');
     card.className = 'card';
     card.onclick = () => openDetail(bill.id);
-    const clearBadge = pending <= 0 ? '<span class="badge cash" style="margin-left:8px">' + escapeHtml(getText('clear')) + '</span>' : '';
+    const clearBadge = pending <= 0 ? '<span class="badge cash" style="margin-left:8px">Clear</span>' : '';
     const ptype = bill.ptype || '';
     card.innerHTML =
       '<h3>' + escapeHtml(bill.name) + clearBadge + '</h3>' +
       '<div class="meta">' + escapeHtml(bill.date || '-') + '</div>' +
-      '<div class="row"><span>' + getText('total') + ': Rs. ' + formatMoney(total) + '</span>' +
-      '<span class="badge ' + typeClass(ptype) + '">' + escapeHtml(typeLabel(ptype)) + '</span></div>' +
-      '<div class="row"><span>' + getText('tpending') + ': Rs. ' + formatMoney(Math.max(pending, 0)) + '</span></div>';
+      '<div class="row"><span>Total: Rs. ' + formatMoney(total) + '</span>' +
+      '<span class="badge ' + ptype + '">' + escapeHtml(ptype) + '</span></div>' +
+      '<div class="row"><span>Pending: Rs. ' + formatMoney(Math.max(pending, 0)) + '</span></div>';
     list.appendChild(card);
   });
   document.getElementById('billCount').textContent = bills.length;
   document.getElementById('totalPending').textContent = formatMoney(totalPending);
 }
 
-function itemsTotal(bill) { return (bill.items || []).reduce((sum, it) => sum + Number(it.qty || 0) * Number(it.rate || 0), 0); }
-function totalPaid(bill) { return (bill.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0); }
+function itemsTotal(bill) { return (bill.items || []).reduce((s, it) => s + Number(it.qty || 0) * Number(it.rate || 0), 0); }
+function totalPaid(bill) { return (bill.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0); }
 function totalAmount(bill) { return itemsTotal(bill); }
 
-/* ============ CUSTOMER FORM ============ */
+/* ============ CUSTOMER: FORM ============ */
 function newBill() {
-  editingId = null; editExistingPaid = 0; formTitleKey = 'formtitle';
-  document.getElementById('t-formtitle').textContent = getText('formtitle');
+  editingId = null; editExistingPaid = 0;
+  document.getElementById('t-formtitle').textContent = 'New Bill';
   document.getElementById('f-name').value = '';
   document.getElementById('f-date').value = today();
   document.getElementById('f-ptype').value = 'cash';
@@ -906,11 +661,10 @@ function newBill() {
   addItemRow(); calcTotal();
   showScreen('formScreen');
 }
-
 function editBill() {
   const bill = getBill(); if (!bill) return;
-  editingId = bill.id; editExistingPaid = totalPaid(bill); formTitleKey = 'editbill';
-  document.getElementById('t-formtitle').textContent = getText('editbill');
+  editingId = bill.id; editExistingPaid = totalPaid(bill);
+  document.getElementById('t-formtitle').textContent = 'Edit Bill';
   document.getElementById('f-name').value = bill.name || '';
   document.getElementById('f-date').value = bill.date || today();
   document.getElementById('f-ptype').value = bill.ptype || 'cash';
@@ -924,7 +678,6 @@ function editBill() {
   if (!box.children.length) addItemRow();
   calcTotal(); showScreen('formScreen');
 }
-
 function addItemRow(name = '', qty = '', rate = '') {
   const box = document.getElementById('itemsBox');
   const row = document.createElement('div');
@@ -936,7 +689,6 @@ function addItemRow(name = '', qty = '', rate = '') {
     '<button type="button" class="btn red small" onclick="this.parentNode.remove(); calcTotal()">✕</button>';
   box.appendChild(row); calcTotal();
 }
-
 function calcTotal() {
   let total = 0;
   document.querySelectorAll('#itemsBox .item-row').forEach(row => {
@@ -948,10 +700,9 @@ function calcTotal() {
   const pending = Math.max(total - editExistingPaid - paid, 0);
   document.getElementById('f-pending').textContent = formatMoney(pending);
 }
-
 function saveBill() {
   const name = document.getElementById('f-name').value.trim();
-  if (!name) { alert(getText('needName')); return; }
+  if (!name) { alert('Please write customer name'); return; }
   const items = [];
   document.querySelectorAll('#itemsBox .item-row').forEach(row => {
     const inputs = row.querySelectorAll('input');
@@ -960,12 +711,12 @@ function saveBill() {
     const rate = toNumber(inputs[2].value);
     if (iname && qty > 0) items.push({ name: iname, qty, rate });
   });
-  if (!items.length) { alert(getText('needItem')); return; }
+  if (!items.length) { alert('Add at least 1 item'); return; }
   let paid = toNumber(document.getElementById('f-paid').value);
   const total = itemsTotal({ items });
   const wasEditing = editingId !== null;
   if (editExistingPaid + paid > total) {
-    if (!confirm(getText('overpaySave'))) return;
+    if (!confirm('Amount paid is more than total. Extra will not be counted. Continue?')) return;
     paid = Math.max(total - editExistingPaid, 0);
   }
   const billData = {
@@ -978,81 +729,62 @@ function saveBill() {
   if (wasEditing) {
     const idx = bills.findIndex(b => b.id === editingId);
     if (idx >= 0) { billData.id = editingId; billData.payments = (bills[idx].payments || []).concat(billData.payments); bills[idx] = billData; }
-    else { billData.id = uid(); bills.push(billData); }
   } else { billData.id = uid(); bills.push(billData); }
   editingId = null; editExistingPaid = 0;
   if (!saveToStorage()) return;
   if (wasEditing) openDetail(billData.id); else showList();
 }
-
 function openDetail(id) { currentBillId = id; renderDetail(); showScreen('detailScreen'); }
-
 function renderDetail() {
   const bill = getBill(); if (!bill) { showList(); return; }
   document.getElementById('d-name').textContent = bill.name || '-';
   const paid = totalPaid(bill);
   const pending = totalAmount(bill) - paid;
   const ptype = bill.ptype || '';
-  let html = '<div class="meta">' + getText('bdate') + ': ' + escapeHtml(bill.date || '-') +
-    ' | ' + getText('ptype') + ': <span class="badge ' + typeClass(ptype) + '">' + escapeHtml(typeLabel(ptype)) + '</span></div>';
+  let html = '<div class="meta">Date: ' + escapeHtml(bill.date || '-') + ' | Type: <span class="badge ' + ptype + '">' + escapeHtml(ptype) + '</span></div>';
   (bill.items || []).forEach(it => {
-    html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) +
-      '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
+    html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) + '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
   });
-  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span>' + getText('total') +
-    '</span><span>Rs. ' + formatMoney(totalAmount(bill)) + '</span></div>';
+  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span>Total</span><span>Rs. ' + formatMoney(totalAmount(bill)) + '</span></div>';
   if ((bill.payments || []).length) {
-    html += '<h3 style="margin-top:10px">' + getText('payments') + '</h3>';
+    html += '<h3 style="margin-top:10px">Payment History</h3>';
     bill.payments.forEach((p, idx) => {
       html += '<div class="pay-row"><span>Rs. ' + formatMoney(p.amount) + (p.date ? ' — ' + escapeHtml(p.date) : '') + '</span>' +
         '<button class="del-pay" onclick="removePayment(' + idx + ')">✕</button></div>';
     });
   }
-  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span class="' + (pending > 0 ? 'pending' : 'paid') + '">' +
-    getText('tpending') + '</span><span class="' + (pending > 0 ? 'pending' : 'paid') + '">Rs. ' +
-    formatMoney(Math.max(pending, 0)) + '</span></div>';
+  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span class="' + (pending > 0 ? 'pending' : 'paid') + '">Pending</span><span class="' + (pending > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(pending, 0)) + '</span></div>';
   document.getElementById('d-details').innerHTML = html;
 }
-
 function removePayment(idx) {
-  if (!confirm(getText('delPayment'))) return;
+  if (!confirm('Delete this payment?')) return;
   const bill = getBill();
-  if (!bill || !Array.isArray(bill.payments) || !bill.payments[idx]) return;
+  if (!bill || !bill.payments[idx]) return;
   bill.payments.splice(idx, 1); saveToStorage(); renderDetail();
 }
-
-function addMoreItems() {
-  editBill();
-  setTimeout(() => {
-    addItemRow();
-    const box = document.getElementById('itemsBox');
-    if (box.lastElementChild) box.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 60);
-}
-
 function addPayment() {
   const bill = getBill(); if (!bill) return;
   const pending = totalAmount(bill) - totalPaid(bill);
-  if (pending <= 0) { alert(getText('noPending')); return; }
-  const input = prompt(getText('payPrompt') + formatMoney(pending) + '):');
+  if (pending <= 0) { alert('No pending!'); return; }
+  const input = prompt('Payment amount (Pending: Rs. ' + formatMoney(pending) + '):');
   if (input === null) return;
   const amount = toNumber(input); if (amount <= 0) return;
   let finalAmount = amount;
-  if (amount > pending) { if (!confirm(getText('overpay'))) return; finalAmount = pending; }
-  const date = prompt(getText('datePrompt'), today());
+  if (amount > pending) { if (!confirm('Amount exceeds pending. Continue?')) return; finalAmount = pending; }
+  const date = prompt('Payment date (YYYY-MM-DD):', today());
   if (date === null) return;
   bill.payments.push({ amount: finalAmount, date: validDate(date) });
   if (!saveToStorage()) return;
   renderDetail();
 }
-
 function deleteBill() {
-  if (!confirm(getText('delBill'))) return;
+  if (!confirm('Delete this bill permanently?')) return;
   const idx = bills.findIndex(b => b.id === currentBillId);
   if (idx < 0) return;
   bills.splice(idx, 1); currentBillId = null; saveToStorage(); showList();
 }
 
+/* ============ WHATSAPP (CUSTOMER) ============ */
 function normalizePhone(raw) {
   let p = String(raw).replace(/\D/g, '');
   if (!p) return '';
@@ -1062,7 +794,6 @@ function normalizePhone(raw) {
   if (p.length === 10 && p.startsWith('3')) return '92' + p;
   return p;
 }
-
 function shareWhatsApp() {
   const bill = getBill(); if (!bill) return;
   const paid = totalPaid(bill);
@@ -1071,143 +802,539 @@ function shareWhatsApp() {
   (bill.items || []).forEach(it => {
     msg += (it.name || '-') + ' x' + it.qty + ' = Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '\n';
   });
-  msg += '------------------------\nTotal: Rs. ' + formatMoney(totalAmount(bill)) + '\nPaid: Rs. ' + formatMoney(paid) +
-    '\nPending: Rs. ' + formatMoney(Math.max(pending, 0)) + '\n\nShukriya! / شکریہ!';
+  msg += '------------------------\nTotal: Rs. ' + formatMoney(totalAmount(bill)) + '\nPaid: Rs. ' + formatMoney(paid) + '\nPending: Rs. ' + formatMoney(Math.max(pending, 0)) + '\n\nShukriya!';
   const phone = prompt('Customer WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
   let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  if (phone && phone.trim()) { const digits = normalizePhone(phone); if (digits) url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(msg); }
+  if (phone && phone.trim()) { const d = normalizePhone(phone); if (d) url = 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg); }
   window.open(url, '_blank', 'noopener');
 }
 
-/* ============ SUPPLIER ============ */
-function showSupplierList() { currentSupId = null; showScreen('supListScreen'); renderSupplierList(); }
+/* ============ SUPPLIER: HELPERS ============ */
+function productTotal(p) {
+  return (toNumber(p.qtyCartons) * toNumber(p.rateCartons)) + (toNumber(p.qtyUnits) * toNumber(p.rateUnits));
+}
+function supBillTotal(b) {
+  return (b.products || []).reduce((s, p) => s + productTotal(p), 0);
+}
 function supPaid(b) { return (b.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0); }
+function getOpeningFor(name) {
+  if (!name) return 0;
+  return Number(supplierOpenings[name] || 0);
+}
+function setOpeningFor(name, amount) {
+  if (!name) return;
+  if (amount > 0) supplierOpenings[name] = amount;
+  else delete supplierOpenings[name];
+  saveOpenings();
+}
+// Supplier-level total dues (opening + all their bills - all their payments)
+function supplierTotalDues(name) {
+  const opening = getOpeningFor(name);
+  let total = opening, paid = 0;
+  supBills.forEach(b => {
+    if ((b.name || '') === name) {
+      total += supBillTotal(b);
+      paid += supPaid(b);
+    }
+  });
+  return { total, paid, due: total - paid, opening };
+}
+
+/* ============ SUPPLIER: LIST ============ */
+function showSupplierList() { currentSupId = null; showScreen('supListScreen'); renderSupplierList(); }
+
+function onFilterChange() {
+  const v = document.getElementById('supDateFilter').value;
+  document.getElementById('customRangeBox').classList.toggle('hidden', v !== 'custom');
+  renderSupplierList();
+}
+
+function inDateRange(dateStr, filter, from, to) {
+  if (!dateStr) return filter === 'all' || filter === 'custom';
+  const d = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  if (filter === 'all') return true;
+  if (filter === 'thisMonth') return d.getFullYear() === y && d.getMonth() === m;
+  if (filter === 'lastMonth') {
+    const lm = m === 0 ? 11 : m - 1;
+    const ly = m === 0 ? y - 1 : y;
+    return d.getFullYear() === ly && d.getMonth() === lm;
+  }
+  if (filter === 'thisYear') return d.getFullYear() === y;
+  if (filter === 'last3') {
+    const threeAgo = new Date(y, m - 2, 1);
+    return d >= threeAgo;
+  }
+  if (filter === 'custom') {
+    if (from && d < new Date(from + 'T00:00:00')) return false;
+    if (to && d > new Date(to + 'T23:59:59')) return false;
+    return true;
+  }
+  return true;
+}
 
 function renderSupplierList() {
   const list = document.getElementById('supList');
   const q = (document.getElementById('supSearch').value || '').trim().toLowerCase();
+  const filter = document.getElementById('supDateFilter').value;
+  const from = document.getElementById('customFrom').value;
+  const to = document.getElementById('customTo').value;
+
   list.innerHTML = '';
-  let totalDue = 0;
+  let totalDueAll = 0;
+  let shownCount = 0;
+
   supBills.forEach((b) => {
+    if (!inDateRange(b.date, filter, from, to)) return;
     const paid = supPaid(b);
-    const due = Number(b.amount || 0) - paid;
-    totalDue += Math.max(due, 0);
-    if (q && !(String(b.name || '').toLowerCase().includes(q)) && !(String(b.date || '').toLowerCase().includes(q)) && !(String(b.desc || '').toLowerCase().includes(q))) return;
+    const thisTotal = supBillTotal(b);
+    const thisDue = thisTotal - paid;
+    // Supplier-level total due (not just this bill)
+    const supStats = supplierTotalDues(b.name || '');
+    totalDueAll += 0; // will compute after
+    shownCount++;
+
+    const nameMatch = String(b.name || '').toLowerCase().includes(q);
+    const dateMatch = String(b.date || '').toLowerCase().includes(q);
+    const orderMatch = String(b.orderNo || '').toLowerCase().includes(q);
+    const delMatch = String(b.deliveryDate || '').toLowerCase().includes(q);
+    if (q && !nameMatch && !dateMatch && !orderMatch && !delMatch) return;
+
+    // Determine badge for this bill
+    let badgeClass = '', badgeText = '';
+    if (supStats.due <= 0) { badgeClass = 'badge-paid'; badgeText = 'PAID'; }
+    else if (supStats.paid > 0) { badgeClass = 'badge-partial'; badgeText = 'PARTIAL'; }
+    else { badgeClass = 'badge-due'; badgeText = 'DUE'; }
+
     const card = document.createElement('div');
     card.className = 'card';
     card.onclick = () => { currentSupId = b.id; renderSupDetail(); showScreen('supDetailScreen'); };
     card.innerHTML =
-      '<h3>' + escapeHtml(b.name) + '</h3>' +
-      '<div class="meta">' + escapeHtml(b.date || '-') + (b.desc ? ' | ' + escapeHtml(b.desc) : '') + '</div>' +
-      '<div class="row"><span>' + getText('total') + ': Rs. ' + formatMoney(b.amount) + '</span></div>' +
-      '<div class="row"><span class="' + (due > 0 ? 'pending' : 'paid') + '">' + getText('dues') + ': Rs. ' + formatMoney(Math.max(due, 0)) + '</span></div>';
+      '<span class="card-badge ' + badgeClass + '">' + badgeText + '</span>' +
+      '<h3>' + escapeHtml(b.name || '-') + '</h3>' +
+      '<div class="meta">' + escapeHtml(b.date || '-') +
+        (b.orderNo ? ' | Order: ' + escapeHtml(b.orderNo) : '') +
+        (b.deliveryDate ? ' | Del: ' + escapeHtml(b.deliveryDate) : '') + '</div>' +
+      '<div class="row"><span>Bill Total: Rs. ' + formatMoney(thisTotal) + '</span>' +
+      '<span class="badge ' + (b.ptype || 'credit') + '">' + escapeHtml(b.ptype || 'credit') + '</span></div>' +
+      '<div class="row"><span>Products: ' + (b.products || []).length + '</span></div>' +
+      '<div class="row"><span class="' + (supStats.due > 0 ? 'pending' : 'paid') + '">' +
+        'Total Dues: Rs. ' + formatMoney(Math.max(supStats.due, 0)) + '</span></div>';
     list.appendChild(card);
   });
+
+  // Compute total dues across all suppliers (regardless of filter)
+  const names = new Set();
+  supBills.forEach(b => names.add(b.name));
+  Object.keys(supplierOpenings).forEach(n => names.add(n));
+  let grandDue = 0;
+  names.forEach(n => { grandDue += Math.max(supplierTotalDues(n).due, 0); });
+
   document.getElementById('supCount').textContent = supBills.length;
-  document.getElementById('totalDue').textContent = formatMoney(totalDue);
+  document.getElementById('totalDue').textContent = formatMoney(grandDue);
+
+  const summary = document.getElementById('filterSummary');
+  if (filter === 'all') summary.textContent = 'Showing all ' + shownCount + ' bills';
+  else if (filter === 'custom') summary.textContent = shownCount + ' bills in range';
+  else summary.textContent = shownCount + ' bills shown';
+}
+
+/* ============ OPENINGS MANAGER ============ */
+function openOpeningsManager() {
+  renderOpenings();
+  showScreen('openingsScreen');
+}
+function renderOpenings() {
+  const list = document.getElementById('openingsList');
+  const names = new Set(Object.keys(supplierOpenings));
+  supBills.forEach(b => { if (b.name) names.add(b.name); });
+  list.innerHTML = '';
+  if (!names.size) {
+    list.innerHTML = '<div class="card" style="cursor:default">Koi supplier nahi. Pehle bill banao ya neeche button se opening add karo.</div>';
+    return;
+  }
+  names.forEach(name => {
+    const opening = getOpeningFor(name);
+    const stats = supplierTotalDues(name);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cursor = 'default';
+    card.innerHTML =
+      '<h3>' + escapeHtml(name) + '</h3>' +
+      '<div class="row"><span>Opening:</span><span>Rs. ' + formatMoney(opening) + '</span></div>' +
+      '<div class="row"><span>Bills Total:</span><span>Rs. ' + formatMoney(stats.total - stats.opening) + '</span></div>' +
+      '<div class="row"><span>Paid:</span><span>Rs. ' + formatMoney(stats.paid) + '</span></div>' +
+      '<div class="row"><span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Dues:</span>' +
+      '<span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(stats.due, 0)) + '</span></div>' +
+      '<button class="btn small" style="margin-top:8px" onclick="editOpening(\'' + escapeHtml(name).replace(/'/g,"\\'") + '\')">✏️ Set / Edit Opening</button>';
+    list.appendChild(card);
+  });
+}
+function editOpening(name) {
+  const cur = getOpeningFor(name);
+  const v = prompt('Opening balance for "' + name + '" (Rs.):', String(cur));
+  if (v === null) return;
+  const n = Number(v);
+  if (!isFinite(n) || n < 0) { alert('Invalid amount.'); return; }
+  setOpeningFor(name, n);
+  renderOpenings();
+}
+function addNewOpening() {
+  const name = prompt('Supplier name:');
+  if (!name || !name.trim()) return;
+  const v = prompt('Opening balance (Rs.):', '0');
+  if (v === null) return;
+  const n = Number(v);
+  if (!isFinite(n) || n < 0) { alert('Invalid amount.'); return; }
+  setOpeningFor(name.trim(), n);
+  renderOpenings();
+}
+
+/* ============ SUPPLIER: FORM ============ */
+function addProductRow(product = null) {
+  const box = document.getElementById('productsBox');
+  const idx = box.children.length;
+  const p = product || { name: '', qtyCartons: 0, rateCartons: 0, qtyUnits: 0, rateUnits: 0, unitType: '', photos: [] };
+  const card = document.createElement('div');
+  card.className = 'product-card';
+  card.dataset.idx = idx;
+
+  card.innerHTML =
+    '<div class="prod-head"><h4>Product #' + (idx + 1) + '</h4>' +
+    '<button type="button" class="btn red tiny" onclick="removeProductCard(this)">✕ Remove</button></div>' +
+
+    '<label>Product Name</label>' +
+    '<input type="text" class="p-name" placeholder="Product name" value="' + escapeHtml(p.name) + '">' +
+
+    '<div class="grid2" style="margin-top:6px">' +
+      '<div><label>Qty (Cartons)</label><input type="number" min="0" step="any" class="p-qc" value="' + (p.qtyCartons || '') + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Rate per Carton</label><input type="number" min="0" step="any" class="p-rc" value="' + (p.rateCartons || '') + '" oninput="recalcProducts()"></div>' +
+    '</div>' +
+
+    '<div class="grid3" style="margin-top:6px">' +
+      '<div><label>Qty (Units)</label><input type="number" min="0" step="any" class="p-qu" value="' + (p.qtyUnits || '') + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Unit Type</label><input list="unitTypes" class="p-ut" placeholder="kg/g/L" value="' + escapeHtml(p.unitType || '') + '"></div>' +
+      '<div><label>Rate per Unit</label><input type="number" min="0" step="any" class="p-ru" value="' + (p.rateUnits || '') + '" oninput="recalcProducts()"></div>' +
+    '</div>' +
+
+    '<div style="margin-top:6px;font-size:12px;color:#666">Product Total: Rs. <span class="p-total">0</span></div>' +
+
+    '<div class="photo-btns" style="margin-top:8px">' +
+      '<button type="button" class="btn small green" onclick="attachPhoto(this,\'camera\')">📷 Camera</button>' +
+      '<button type="button" class="btn small" onclick="attachPhoto(this,\'gallery\')">🖼 Gallery</button>' +
+    '</div>' +
+    '<div class="photo-row"></div>';
+
+  box.appendChild(card);
+
+  // restore photos
+  const photoRow = card.querySelector('.photo-row');
+  (p.photos || []).forEach((src, i) => addPhotoThumb(photoRow, src, i));
+
+  updateProductNumbers();
+  recalcProducts();
+}
+
+function removeProductCard(btn) {
+  if (!confirm('Remove this product?')) return;
+  btn.closest('.product-card').remove();
+  updateProductNumbers();
+  recalcProducts();
+}
+
+function updateProductNumbers() {
+  document.querySelectorAll('#productsBox .product-card').forEach((c, i) => {
+    c.querySelector('.prod-head h4').textContent = 'Product #' + (i + 1);
+  });
+}
+
+function getProductsFromForm() {
+  const products = [];
+  document.querySelectorAll('#productsBox .product-card').forEach(card => {
+    const photos = [];
+    card.querySelectorAll('.photo-row .photo-thumb').forEach(t => {
+      photos.push(t.dataset.src);
+    });
+    const p = {
+      name: (card.querySelector('.p-name').value || '').trim(),
+      qtyCartons: toNumber(card.querySelector('.p-qc').value),
+      rateCartons: toNumber(card.querySelector('.p-rc').value),
+      qtyUnits: toNumber(card.querySelector('.p-qu').value),
+      unitType: (card.querySelector('.p-ut').value || '').trim(),
+      rateUnits: toNumber(card.querySelector('.p-ru').value),
+      photos
+    };
+    if (p.name && (productTotal(p) > 0 || photos.length > 0)) products.push(p);
+  });
+  return products;
+}
+
+function recalcProducts() {
+  let total = 0;
+  document.querySelectorAll('#productsBox .product-card').forEach(card => {
+    const p = {
+      qtyCartons: toNumber(card.querySelector('.p-qc').value),
+      rateCartons: toNumber(card.querySelector('.p-rc').value),
+      qtyUnits: toNumber(card.querySelector('.p-qu').value),
+      rateUnits: toNumber(card.querySelector('.p-ru').value)
+    };
+    const t = productTotal(p);
+    card.querySelector('.p-total').textContent = formatMoney(t);
+    total += t;
+  });
+  document.getElementById('s-total').textContent = formatMoney(total);
+  supCalc();
+}
+
+function onSupplierNameChange() {
+  const name = document.getElementById('s-name').value.trim();
+  currentSupOpening = getOpeningFor(name);
+  const box = document.getElementById('s-opening-box');
+  if (name && currentSupOpening > 0) {
+    box.classList.remove('hidden');
+    document.getElementById('s-opening-val').textContent = formatMoney(currentSupOpening);
+  } else {
+    box.classList.add('hidden');
+  }
+  supCalc();
+}
+
+function editOpeningForCurrent() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) { alert('Pehle supplier ka naam likho.'); return; }
+  const cur = getOpeningFor(name);
+  const v = prompt('Opening balance for "' + name + '" (Rs.):', String(cur));
+  if (v === null) return;
+  const n = Number(v);
+  if (!isFinite(n) || n < 0) { alert('Invalid amount.'); return; }
+  setOpeningFor(name, n);
+  onSupplierNameChange();
 }
 
 function newSupBill() {
-  editingSupId = null; supExistingPaid = 0; supFormTitleKey = 'supformtitle';
-  document.getElementById('t-supformtitle').textContent = getText('supformtitle');
+  editingSupId = null; supExistingPaid = 0; currentSupOpening = 0;
+  document.getElementById('t-supformtitle').textContent = 'New Supplier Bill';
   document.getElementById('s-name').value = '';
   document.getElementById('s-date').value = today();
-  document.getElementById('s-desc').value = '';
-  document.getElementById('s-amount').value = '';
+  document.getElementById('s-delivery').value = today();
+  document.getElementById('s-orderno').value = '';
+  document.getElementById('s-ptype').value = 'credit';
   document.getElementById('s-paid').value = 0;
   document.getElementById('s-paiddate').value = today();
   document.getElementById('s-already').classList.add('hidden');
-  supCalc(); showScreen('supFormScreen');
+  document.getElementById('s-opening-box').classList.add('hidden');
+  document.getElementById('productsBox').innerHTML = '';
+  addProductRow();
+  document.getElementById('s-total').textContent = '0';
+  document.getElementById('s-prev-box').classList.add('hidden');
+  document.getElementById('s-grand').textContent = '0';
+  document.getElementById('s-pending').textContent = '0';
+  showScreen('supFormScreen');
 }
 
 function editSupBill() {
   const b = getSup(); if (!b) return;
-  editingSupId = b.id; supExistingPaid = supPaid(b); supFormTitleKey = 'editsup';
-  document.getElementById('t-supformtitle').textContent = getText('editsup');
+  editingSupId = b.id;
+  supExistingPaid = supPaid(b);
+  currentSupOpening = getOpeningFor(b.name || '');
+  document.getElementById('t-supformtitle').textContent = 'Edit Supplier Bill';
   document.getElementById('s-name').value = b.name || '';
   document.getElementById('s-date').value = b.date || today();
-  document.getElementById('s-desc').value = b.desc || '';
-  document.getElementById('s-amount').value = Number(b.amount) || 0;
+  document.getElementById('s-delivery').value = b.deliveryDate || '';
+  document.getElementById('s-orderno').value = b.orderNo || '';
+  document.getElementById('s-ptype').value = b.ptype || 'credit';
   document.getElementById('s-paid').value = 0;
   document.getElementById('s-paiddate').value = today();
+
   const alreadyBox = document.getElementById('s-already');
   if (supExistingPaid > 0) { alreadyBox.classList.remove('hidden'); document.getElementById('s-epaid').textContent = formatMoney(supExistingPaid); }
   else alreadyBox.classList.add('hidden');
-  supCalc(); showScreen('supFormScreen');
+
+  document.getElementById('s-opening-box').classList.toggle('hidden', currentSupOpening <= 0);
+  if (currentSupOpening > 0) document.getElementById('s-opening-val').textContent = formatMoney(currentSupOpening);
+
+  const box = document.getElementById('productsBox'); box.innerHTML = '';
+  (b.products || []).forEach(p => addProductRow(p));
+  if (!box.children.length) addProductRow();
+  recalcProducts();
+  showScreen('supFormScreen');
 }
 
 function supCalc() {
-  const total = toNumber(document.getElementById('s-amount').value);
+  const thisBill = Array.from(document.querySelectorAll('#productsBox .product-card')).reduce((s, card) => {
+    const p = {
+      qtyCartons: toNumber(card.querySelector('.p-qc').value),
+      rateCartons: toNumber(card.querySelector('.p-rc').value),
+      qtyUnits: toNumber(card.querySelector('.p-qu').value),
+      rateUnits: toNumber(card.querySelector('.p-ru').value)
+    };
+    return s + productTotal(p);
+  }, 0);
   const paid = toNumber(document.getElementById('s-paid').value);
-  document.getElementById('s-total').textContent = formatMoney(total);
-  document.getElementById('s-pending').textContent = formatMoney(Math.max(total - supExistingPaid - paid, 0));
+  const prev = currentSupOpening;
+  const grand = thisBill + prev;
+  const remaining = Math.max(grand - supExistingPaid - paid, 0);
+
+  document.getElementById('s-total').textContent = formatMoney(thisBill);
+  const prevBox = document.getElementById('s-prev-box');
+  if (prev > 0) { prevBox.classList.remove('hidden'); document.getElementById('s-prev').textContent = formatMoney(prev); }
+  else prevBox.classList.add('hidden');
+  document.getElementById('s-grand').textContent = formatMoney(grand);
+  document.getElementById('s-pending').textContent = formatMoney(remaining);
 }
 
-function saveSupBill() {
+async function uploadPhoto(dataUrl) {
+  if (!fbStorage || !fbAuth || !fbAuth.currentUser) return null;
+  try {
+    const uid = fbAuth.currentUser.uid;
+    const ref = fbStorage.ref('photos/' + uid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
+    await ref.putString(dataUrl, 'data_url');
+    return await ref.getDownloadURL();
+  } catch (e) { console.warn('Upload failed:', e); return null; }
+}
+
+async function saveSupBill() {
   const name = document.getElementById('s-name').value.trim();
-  const amount = toNumber(document.getElementById('s-amount').value);
-  if (!name) { alert(getText('needSupName')); return; }
-  if (amount <= 0) { alert(getText('needAmount')); return; }
-  let paid = toNumber(document.getElementById('s-paid').value);
-  const wasEditing = editingSupId !== null;
-  if (supExistingPaid + paid > amount) {
-    if (!confirm(getText('overpaySave'))) return;
-    paid = Math.max(amount - supExistingPaid, 0);
+  if (!name) { alert('Supplier name likho.'); return; }
+  const products = getProductsFromForm();
+  if (!products.length) { alert('Kam se kam 1 product add karo.'); return; }
+
+  // Upload any new photos
+  const hasNewPhotos = products.some(p => p.photos.some(isDataUrl));
+  if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
+    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
   }
-  const bill = {
-    name, amount,
-    desc: document.getElementById('s-desc').value.trim(),
+
+  showLoading('Photos upload ho rahi hain...');
+  try {
+    for (const p of products) {
+      const out = [];
+      for (const photo of p.photos) {
+        if (isDataUrl(photo)) {
+          if (fbStorage && fbAuth && fbAuth.currentUser) {
+            const url = await uploadPhoto(photo);
+            if (url) out.push(url);
+          }
+        } else {
+          out.push(photo);
+        }
+      }
+      p.photos = out;
+    }
+  } finally { hideLoading(); }
+
+  let paid = toNumber(document.getElementById('s-paid').value);
+  const thisBill = products.reduce((s, p) => s + productTotal(p), 0);
+  const grandTotal = thisBill + currentSupOpening;
+  const wasEditing = editingSupId !== null;
+  if (supExistingPaid + paid > grandTotal) {
+    if (!confirm('Paid > Total. Extra count nahi hoga. Continue?')) return;
+    paid = Math.max(grandTotal - supExistingPaid, 0);
+  }
+
+  const billData = {
+    name,
     date: validDate(document.getElementById('s-date').value),
+    deliveryDate: document.getElementById('s-delivery').value || '',
+    orderNo: document.getElementById('s-orderno').value.trim(),
+    ptype: document.getElementById('s-ptype').value || 'credit',
+    products,
     payments: []
   };
-  if (paid > 0) bill.payments.push({ amount: paid, date: validDate(document.getElementById('s-paiddate').value) });
+  if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('s-paiddate').value) });
+
   if (wasEditing) {
     const idx = supBills.findIndex(b => b.id === editingSupId);
-    if (idx >= 0) { bill.id = editingSupId; bill.payments = (supBills[idx].payments || []).concat(bill.payments); supBills[idx] = bill; }
-    else { bill.id = uid(); supBills.push(bill); }
-  } else { bill.id = uid(); supBills.push(bill); }
-  editingSupId = null; supExistingPaid = 0;
+    if (idx >= 0) {
+      billData.id = editingSupId;
+      billData.payments = (supBills[idx].payments || []).concat(billData.payments);
+      supBills[idx] = billData;
+    }
+  } else {
+    billData.id = uid();
+    supBills.push(billData);
+  }
+  editingSupId = null; supExistingPaid = 0; currentSupOpening = 0;
+
   if (!supSave()) return;
-  if (wasEditing) { currentSupId = bill.id; renderSupDetail(); showScreen('supDetailScreen'); }
+  if (wasEditing) { currentSupId = billData.id; renderSupDetail(); showScreen('supDetailScreen'); }
   else showSupplierList();
 }
 
+/* ============ SUPPLIER: DETAIL ============ */
 function renderSupDetail() {
   const b = getSup(); if (!b) { showSupplierList(); return; }
   document.getElementById('sd-name').textContent = b.name || '-';
+
+  const thisBill = supBillTotal(b);
   const paid = supPaid(b);
-  const due = Number(b.amount || 0) - paid;
-  let html = '<div class="meta">' + escapeHtml(b.date || '-') + (b.desc ? ' | ' + escapeHtml(b.desc) : '') + '</div>';
-  html += '<div class="row" style="font-weight:bold"><span>' + getText('total') + '</span><span>Rs. ' + formatMoney(b.amount) + '</span></div>';
+  const stats = supplierTotalDues(b.name || '');
+
+  // Supplier-level badge
+  const badge = document.getElementById('sd-badge');
+  badge.classList.remove('hidden', 'badge-paid', 'badge-partial', 'badge-due');
+  if (stats.due <= 0) { badge.classList.add('badge-paid'); badge.textContent = 'PAID'; }
+  else if (stats.paid > 0) { badge.classList.add('badge-partial'); badge.textContent = 'PARTIAL'; }
+  else { badge.classList.add('badge-due'); badge.textContent = 'DUE'; }
+
+  let html = '';
+  html += '<div class="meta">Bill: ' + escapeHtml(b.date || '-') +
+    (b.deliveryDate ? ' | Delivery: ' + escapeHtml(b.deliveryDate) : '') +
+    (b.orderNo ? ' | Order: ' + escapeHtml(b.orderNo) : '') +
+    ' | <span class="badge ' + (b.ptype || 'credit') + '">' + escapeHtml(b.ptype || 'credit') + '</span></div>';
+
+  html += '<h3 style="margin-top:10px">Products</h3>';
+  (b.products || []).forEach(p => {
+    const t = productTotal(p);
+    let line = '';
+    if (p.qtyCartons > 0) line += p.qtyCartons + ' ctn × Rs. ' + formatMoney(p.rateCartons) + ' ';
+    if (p.qtyUnits > 0) line += (line ? '+ ' : '') + p.qtyUnits + ' ' + (p.unitType || 'units') + ' × Rs. ' + formatMoney(p.rateUnits);
+    html += '<div style="padding:8px 0;border-bottom:1px solid #eee">' +
+      '<div class="row"><span style="font-weight:bold">' + escapeHtml(p.name || '-') + '</span><span>Rs. ' + formatMoney(t) + '</span></div>' +
+      (line ? '<div class="meta">' + escapeHtml(line) + '</div>' : '') +
+      (p.photos && p.photos.length ? '<div class="photo-row">' + p.photos.map((src, i) => '<div class="photo-thumb" onclick="openViewerForProduct(\'' + b.id + '\',' + (b.products.indexOf(p)) + ',' + i + ')"><img src="' + escapeHtml(src) + '"></div>').join('') + '</div>' : '') +
+      '</div>';
+  });
+
+  html += '<div class="row" style="font-weight:bold;margin-top:10px"><span>This Bill Total</span><span>Rs. ' + formatMoney(thisBill) + '</span></div>';
+
   if ((b.payments || []).length) {
-    html += '<h3 style="margin-top:10px">' + getText('payments') + '</h3>';
+    html += '<h3 style="margin-top:10px">Payment History</h3>';
     b.payments.forEach((p, idx) => {
       html += '<div class="pay-row"><span>Rs. ' + formatMoney(p.amount) + (p.date ? ' — ' + escapeHtml(p.date) : '') + '</span>' +
         '<button class="del-pay" onclick="removeSupPayment(' + idx + ')">✕</button></div>';
     });
   }
-  html += '<div class="row" style="font-weight:bold;margin-top:8px"><span class="' + (due > 0 ? 'pending' : 'paid') + '">' + getText('dues') + '</span>' +
-    '<span class="' + (due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(due, 0)) + '</span></div>';
+
+  html += '<div style="background:#fff4e5;padding:10px;border-radius:8px;margin-top:10px">';
+  html += '<div class="row"><span>Opening Balance</span><span>Rs. ' + formatMoney(stats.opening) + '</span></div>';
+  html += '<div class="row"><span>All Bills Total</span><span>Rs. ' + formatMoney(stats.total) + '</span></div>';
+  html += '<div class="row"><span>Total Paid</span><span>Rs. ' + formatMoney(stats.paid) + '</span></div>';
+  html += '<div class="row" style="font-weight:bold"><span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Total Dues (Supplier)</span>' +
+    '<span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(stats.due, 0)) + '</span></div>';
+  html += '</div>';
+
   document.getElementById('sd-details').innerHTML = html;
 }
 
 function removeSupPayment(idx) {
-  if (!confirm(getText('delPayment'))) return;
+  if (!confirm('Delete this payment?')) return;
   const b = getSup();
-  if (!b || !Array.isArray(b.payments) || !b.payments[idx]) return;
+  if (!b || !b.payments[idx]) return;
   b.payments.splice(idx, 1); supSave(); renderSupDetail();
 }
 
 function addSupPayment() {
   const b = getSup(); if (!b) return;
-  const due = Number(b.amount || 0) - supPaid(b);
-  if (due <= 0) { alert(getText('noDues')); return; }
-  const input = prompt(getText('duePrompt') + formatMoney(due) + '):');
+  const stats = supplierTotalDues(b.name || '');
+  if (stats.due <= 0) { alert('No dues!'); return; }
+  const input = prompt('Payment amount (Total Dues: Rs. ' + formatMoney(stats.due) + '):');
   if (input === null) return;
   const amount = toNumber(input); if (amount <= 0) return;
   let finalAmount = amount;
-  if (amount > due) { if (!confirm(getText('overpay'))) return; finalAmount = due; }
-  const date = prompt(getText('datePrompt'), today());
+  if (amount > stats.due) { if (!confirm('Amount exceeds dues. Continue?')) return; finalAmount = stats.due; }
+  const date = prompt('Payment date (YYYY-MM-DD):', today());
   if (date === null) return;
   b.payments.push({ amount: finalAmount, date: validDate(date) });
   if (!supSave()) return;
@@ -1215,7 +1342,7 @@ function addSupPayment() {
 }
 
 function deleteSupBill() {
-  if (!confirm(getText('delSupBill'))) return;
+  if (!confirm('Delete this bill permanently?')) return;
   const idx = supBills.findIndex(b => b.id === currentSupId);
   if (idx < 0) return;
   supBills.splice(idx, 1); currentSupId = null; supSave(); showSupplierList();
@@ -1224,62 +1351,342 @@ function deleteSupBill() {
 function shareSupWhatsApp() {
   const b = getSup(); if (!b) return;
   const paid = supPaid(b);
-  const due = Number(b.amount || 0) - paid;
+  const thisBill = supBillTotal(b);
+  const stats = supplierTotalDues(b.name || '');
   let msg = '*Rajpoot General Store*\nSupplier: ' + (b.name || '-') + '\nDate: ' + (b.date || '-') + '\n';
-  if (b.desc) msg += getText('invoice') + ': ' + b.desc + '\n';
-  msg += '------------------------\nTotal: Rs. ' + formatMoney(b.amount) + '\nPaid: Rs. ' + formatMoney(paid) + '\n' + getText('dues') + ': Rs. ' + formatMoney(Math.max(due, 0)) + '\n';
+  if (b.deliveryDate) msg += 'Delivery: ' + b.deliveryDate + '\n';
+  if (b.orderNo) msg += 'Order: ' + b.orderNo + '\n';
+  msg += '------------------------\n';
+  (b.products || []).forEach(p => {
+    const t = productTotal(p);
+    let line = '- ' + (p.name || '-');
+    if (p.qtyCartons > 0) line += ' (' + p.qtyCartons + ' ctn × ' + formatMoney(p.rateCartons) + ')';
+    if (p.qtyUnits > 0) line += ' (' + p.qtyUnits + (p.unitType ? ' ' + p.unitType : '') + ' × ' + formatMoney(p.rateUnits) + ')';
+    line += ' = Rs. ' + formatMoney(t);
+    msg += line + '\n';
+  });
+  msg += '------------------------\n';
+  msg += 'This Bill: Rs. ' + formatMoney(thisBill) + '\n';
+  msg += 'Opening: Rs. ' + formatMoney(stats.opening) + '\n';
+  msg += 'Total Paid: Rs. ' + formatMoney(stats.paid) + '\n';
+  msg += 'Total Dues: Rs. ' + formatMoney(Math.max(stats.due, 0)) + '\n';
   const phone = prompt('Supplier WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
   let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  if (phone && phone.trim()) { const digits = normalizePhone(phone); if (digits) url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(msg); }
+  if (phone && phone.trim()) { const d = normalizePhone(phone); if (d) url = 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg); }
   window.open(url, '_blank', 'noopener');
+}
+
+/* ============ PHOTOS: ATTACH / VIEW ============ */
+let currentPhotoTarget = null; // product card that will receive photo
+
+function attachPhoto(btn, mode) {
+  currentPhotoTarget = btn.closest('.product-card').querySelector('.photo-row');
+  const row = currentPhotoTarget;
+  if (row.children.length >= 5) { alert('Max 5 photos per product.'); return; }
+  const cam = document.getElementById('camInput');
+  const gal = document.getElementById('galInput');
+  const inp = mode === 'camera' ? cam : gal;
+  inp.value = '';
+  inp.onchange = (ev) => handlePhotoSelect(ev);
+  inp.click();
+}
+
+function handlePhotoSelect(ev) {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    const row = currentPhotoTarget;
+    if (!row || row.children.length >= 5) return;
+    addPhotoThumb(row, dataUrl, row.children.length);
+  };
+  reader.readAsDataURL(f);
+  currentPhotoTarget = null;
+}
+
+function addPhotoThumb(row, src, idx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'photo-thumb';
+  wrap.dataset.src = src;
+  wrap.innerHTML =
+    '<img src="' + escapeHtml(src) + '" onclick="openViewerFromThumb(this)">' +
+    '<button type="button" class="photo-x" onclick="removePhotoThumb(this)">✕</button>';
+  row.appendChild(wrap);
+}
+
+function removePhotoThumb(btn) {
+  if (!confirm('Delete this photo?')) return;
+  btn.closest('.photo-thumb').remove();
+}
+
+function openViewerFromThumb(img) {
+  const row = img.closest('.photo-row');
+  const thumbs = Array.from(row.querySelectorAll('.photo-thumb'));
+  const srcs = thumbs.map(t => t.dataset.src);
+  const start = thumbs.indexOf(img.closest('.photo-thumb'));
+  openViewer(srcs, start);
+}
+
+function openViewerForProduct(billId, productIdx, photoIdx) {
+  const b = supBills.find(x => x.id === billId);
+  if (!b) return;
+  const p = (b.products || [])[productIdx];
+  if (!p) return;
+  openViewer(p.photos || [], photoIdx);
+}
+
+/* ============ PHOTO VIEWER ============ */
+let viewerSrcs = [], viewerIndex = 0, viewerScale = 1;
+let viewerStartDist = 0, viewerStartScale = 1;
+
+function openViewer(srcs, idx) {
+  viewerSrcs = srcs.slice();
+  viewerIndex = idx || 0;
+  viewerScale = 1;
+  const ov = document.getElementById('photoViewer');
+  ov.classList.remove('hidden');
+  document.getElementById('viewerImg').style.transform = 'scale(1)';
+  updateViewer();
+  document.body.style.overflow = 'hidden';
+  ov.style.display = 'flex';
+}
+function closeViewer() {
+  document.getElementById('photoViewer').classList.add('hidden');
+  document.body.style.overflow = '';
+  viewerSrcs = [];
+}
+function updateViewer() {
+  if (!viewerSrcs.length) { closeViewer(); return; }
+  viewerIndex = Math.max(0, Math.min(viewerSrcs.length - 1, viewerIndex));
+  document.getElementById('viewerImg').src = viewerSrcs[viewerIndex];
+  document.getElementById('viewerCounter').textContent = (viewerIndex + 1) + ' / ' + viewerSrcs.length;
+  document.getElementById('viewerPrev').style.visibility = viewerIndex > 0 ? 'visible' : 'hidden';
+  document.getElementById('viewerNext').style.visibility = viewerIndex < viewerSrcs.length - 1 ? 'visible' : 'hidden';
+  viewerScale = 1;
+  document.getElementById('viewerImg').style.transform = 'scale(1)';
+}
+function viewerNav(d) {
+  viewerIndex += d;
+  updateViewer();
+}
+
+(function setupViewerZoom(){
+  const body = document.getElementById('viewerBody');
+  const img = document.getElementById('viewerImg');
+  if (!body || !img) return;
+
+  body.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      viewerStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      viewerStartScale = viewerScale;
+    }
+  }, { passive: true });
+
+  body.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && viewerStartDist > 0) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      let newScale = viewerStartScale * (dist / viewerStartDist);
+      newScale = Math.max(1, Math.min(6, newScale));
+      viewerScale = newScale;
+      img.style.transform = 'scale(' + newScale + ')';
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  body.addEventListener('touchend', () => { viewerStartDist = 0; });
+
+  body.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    let s = viewerScale + (e.deltaY < 0 ? 0.25 : -0.25);
+    s = Math.max(1, Math.min(6, s));
+    viewerScale = s;
+    img.style.transform = 'scale(' + s + ')';
+  }, { passive: false });
+
+  let lastTap = 0;
+  body.addEventListener('click', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      viewerScale = 1;
+      img.style.transform = 'scale(1)';
+    }
+    lastTap = now;
+  });
+})();
+
+/* ============ SETTINGS ============ */
+function openSettings() { updateSettingsUI(); showScreen('settingsScreen'); }
+function updateSettingsUI() {
+  document.getElementById('pinStatus').innerHTML = hasPIN() ? '<span class="status-dot on"></span>Set' : '<span class="status-dot off"></span>Not set';
+  document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred() ? '<span class="status-dot on"></span>Enabled' : '<span class="status-dot off"></span>Off';
+  if (firebaseReady && fbAuth) {
+    const u = fbAuth.currentUser;
+    document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
+    document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
+    document.getElementById('cloudBtn').onclick = u ? signOutCloud : () => showScreen('loginScreen');
+    document.getElementById('syncBtn').classList.toggle('hidden', !u);
+  } else {
+    document.getElementById('cloudStatus').textContent = 'Not configured';
+    document.getElementById('cloudBtn').textContent = 'Setup Required';
+    document.getElementById('cloudBtn').onclick = () => alert('Firebase config missing.');
+  }
+  const ls = localStorage.getItem('rgs_last_sync');
+  document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
+}
+async function changePin() {
+  if (hasPIN()) {
+    const old = prompt('Enter current PIN:'); if (old === null) return;
+    if (await hashPin(old) !== localStorage.getItem(PIN_KEY)) { alert('Wrong PIN.'); return; }
+  }
+  const np1 = prompt('New 4-digit PIN:'); if (!np1 || np1.length !== 4) { alert('PIN must be 4 digits.'); return; }
+  const np2 = prompt('Confirm new PIN:'); if (np1 !== np2) { alert('PINs do not match.'); return; }
+  localStorage.setItem(PIN_KEY, await hashPin(np1)); alert('✅ PIN updated.'); updateSettingsUI();
+}
+async function toggleBiometric() {
+  if (isBioEnabled() && hasBioCred()) {
+    if (confirm('Disable biometric unlock?')) { localStorage.removeItem(BIO_CRED_KEY); localStorage.removeItem(BIO_ENABLED_KEY); alert('Biometric disabled.'); }
+  } else { await registerBiometric(); }
+  updateSettingsUI();
+}
+
+/* ============ CLOUD ============ */
+async function doLogin() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  try { await fbAuth.signInWithEmailAndPassword(email, pass); await pullFromCloud(); alert('✅ Signed in!'); showList(); }
+  catch (e) { document.getElementById('loginErr').textContent = e.message || 'Login failed'; }
+}
+async function doSignup() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  if (pass.length < 6) { document.getElementById('loginErr').textContent = 'Password min 6 chars'; return; }
+  try { await fbAuth.createUserWithEmailAndPassword(email, pass); await pushToCloud(); alert('✅ Account created!'); showList(); }
+  catch (e) { document.getElementById('loginErr').textContent = e.message || 'Signup failed'; }
+}
+async function signOutCloud() {
+  if (!firebaseReady) return;
+  if (!confirm('Sign out? Local data will stay.')) return;
+  await fbAuth.signOut(); updateSettingsUI(); alert('Signed out.');
+}
+function handleCloud() {
+  if (!firebaseReady) { alert('Firebase config missing.'); return; }
+  if (fbAuth.currentUser) signOutCloud(); else showScreen('loginScreen');
+}
+async function pushToCloud() {
+  if (!firebaseReady || !fbAuth.currentUser) return false;
+  const uid = fbAuth.currentUser.uid;
+  try {
+    await fbDb.collection('stores').doc(uid).set({
+      bills, supBills,
+      supplierOpenings,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email: fbAuth.currentUser.email
+    });
+    localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    return true;
+  } catch (e) { console.warn('Push failed:', e); return false; }
+}
+async function pullFromCloud() {
+  if (!firebaseReady || !fbAuth.currentUser) return false;
+  const uid = fbAuth.currentUser.uid;
+  try {
+    const doc = await fbDb.collection('stores').doc(uid).get();
+    if (doc.exists) {
+      const d = doc.data();
+      if (Array.isArray(d.bills)) bills = d.bills;
+      if (Array.isArray(d.supBills)) supBills = d.supBills;
+      if (d.supplierOpenings && typeof d.supplierOpenings === 'object') supplierOpenings = d.supplierOpenings;
+      saveToStorage(); supSave(); saveOpenings();
+      localStorage.setItem('rgs_last_sync', new Date().toISOString());
+      return true;
+    }
+    return false;
+  } catch (e) { console.warn('Pull failed:', e); return false; }
+}
+async function syncNow() {
+  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
+  if (!confirm('Sync? This will overwrite cloud data with local data.')) return;
+  const ok = await pushToCloud();
+  if (ok) { alert('✅ Synced.'); updateSettingsUI(); } else alert('❌ Sync failed.');
+}
+let syncTimer = null;
+function scheduleAutoSync() {
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToCloud(), 3000);
+}
+
+/* ============ EXPORT / IMPORT ============ */
+function exportData() {
+  const data = { bills, supBills, supplierOpenings, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rgs-backup-' + today() + '.json';
+  a.click();
+}
+function importData(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!Array.isArray(d.bills) || !Array.isArray(d.supBills)) throw new Error('Invalid');
+      if (!confirm('Replace all current data with backup?')) return;
+      bills = d.bills; supBills = d.supBills;
+      if (d.supplierOpenings) supplierOpenings = d.supplierOpenings;
+      saveToStorage(); supSave(); saveOpenings();
+      alert('✅ Imported.'); showList();
+    } catch (e) { alert('Invalid backup file.'); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+}
+
+/* ============ LOADING OVERLAY ============ */
+function showLoading(msg) {
+  let el = document.getElementById('loadingOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loadingOverlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99999;font-size:16px;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg || 'Loading...';
+  el.style.display = 'flex';
+}
+function hideLoading() {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.style.display = 'none';
 }
 
 /* ============ PWA INSTALL ============ */
 let deferredPrompt = null;
-
-function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-}
 function showInstallBtn(show) {
   const b = document.getElementById('installBtn');
   if (b) b.classList.toggle('hidden', !show);
 }
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  showInstallBtn(true);
-});
-
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; showInstallBtn(true); });
 function installApp() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => {
-      deferredPrompt = null;
-      showInstallBtn(!isStandalone());
-    });
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; showInstallBtn(!isStandalone()); });
     return;
   }
-  // Fallback: browser ne prompt nahi diya — steps dikhao
-  alert(
-    'INSTALL AS APP (Chrome on Android):\n\n' +
-    '1) Tap Chrome menu (⋮) → "Install app" → Install.\n' +
-    '   Only "Add to Home screen"/"Create shortcut" ka matlab hai\n' +
-    '   browser ko app install nahi karne de raha (see note below).\n\n' +
-    '2) Agar "Already installed" dikhaye (lekin icon nahi hai):\n' +
-    '   • Phone Settings → Apps → search "RGS Store" / "Rajpoot General Store"\n' +
-    '     → Uninstall (purana/purana tuta hua entry hatao).\n' +
-    '   • Home screen se purana shortcut delete karo (long-press → Remove).\n' +
-    '   • Phir yeh page Chrome mein kholo → ⋮ → Install app.\n\n' +
-    '3) App drawer mein bhi check karo — kabhi kabhi icon sirf\n' +
-    '   home screen par add nahi hota.'
-  );
+  alert('Install as app: Chrome menu (⋮) → "Install app".\nAgar "Install app" na dikhe to purana shortcut home screen se hatao, phir try karo.');
 }
-
-window.addEventListener('appinstalled', () => {
-  deferredPrompt = null;
-  showInstallBtn(isStandalone());
-});
+window.addEventListener('appinstalled', () => { deferredPrompt = null; showInstallBtn(isStandalone()); });
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
@@ -1289,9 +1696,21 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 window.addEventListener('load', () => {
   if (!hasPIN()) startSetup();
   else startLock();
-  // Standalone app nahi hai to Install button dikha do (prompt na bhi aaye to)
   if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500);
 });
 </script>
+
+<datalist id="unitTypes">
+  <option value="gram"></option>
+  <option value="kg"></option>
+  <option value="litre"></option>
+  <option value="ml"></option>
+  <option value="dozen"></option>
+  <option value="piece"></option>
+  <option value="packet"></option>
+  <option value="bag"></option>
+  <option value="box"></option>
+  <option value="bottle"></option>
+</datalist>
 </body>
 </html>
