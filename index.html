@@ -674,44 +674,100 @@ function editBill() {
   if (editExistingPaid > 0) { alreadyBox.classList.remove('hidden'); document.getElementById('f-epaid').textContent = formatMoney(editExistingPaid); }
   else alreadyBox.classList.add('hidden');
   const box = document.getElementById('itemsBox'); box.innerHTML = '';
-  (bill.items || []).forEach(it => addItemRow(it.name, it.qty, it.rate));
+  (bill.items || []).forEach(it => addItemRow(it));
   if (!box.children.length) addItemRow();
   calcTotal(); showScreen('formScreen');
 }
-function addItemRow(name = '', qty = '', rate = '') {
+function addItemRow(item = null) {
+  const it = item || { name: '', qty: '', rate: '', photos: [] };
   const box = document.getElementById('itemsBox');
-  const row = document.createElement('div');
-  row.className = 'item-row';
-  row.innerHTML =
-    '<input type="text" placeholder="Item" value="' + escapeHtml(name) + '" oninput="calcTotal()">' +
-    '<input type="number" min="0" step="any" placeholder="Qty" value="' + escapeHtml(qty) + '" oninput="calcTotal()">' +
-    '<input type="number" min="0" step="any" placeholder="Rate" value="' + escapeHtml(rate) + '" oninput="calcTotal()">' +
-    '<button type="button" class="btn red small" onclick="this.parentNode.remove(); calcTotal()">✕</button>';
-  box.appendChild(row); calcTotal();
+  const card = document.createElement('div');
+  card.className = 'product-card';
+  card.innerHTML =
+    '<div class="prod-head"><h4>Item</h4>' +
+    '<button type="button" class="btn red tiny" onclick="removeItemCard(this)">✕ Remove</button></div>' +
+    '<div class="item-row">' +
+      '<input type="text" class="i-name" placeholder="Item" value="' + escapeHtml(it.name) + '" oninput="calcTotal()">' +
+      '<input type="number" class="i-qty" min="0" step="any" placeholder="Qty" value="' + escapeHtml(it.qty) + '" oninput="calcTotal()">' +
+      '<input type="number" class="i-rate" min="0" step="any" placeholder="Rate" value="' + escapeHtml(it.rate) + '" oninput="calcTotal()">' +
+    '</div>' +
+    '<div class="photo-btns" style="margin-top:6px">' +
+      '<button type="button" class="btn small green" onclick="attachCustomerPhoto(this,\'camera\')">📷 Camera</button>' +
+      '<button type="button" class="btn small" onclick="attachCustomerPhoto(this,\'gallery\')">🖼 Gallery</button>' +
+    '</div>' +
+    '<div class="photo-row"></div>';
+  box.appendChild(card);
+  const photoRow = card.querySelector('.photo-row');
+  (it.photos || []).forEach(src => addPhotoThumb(photoRow, src, photoRow.children.length));
+  calcTotal();
+}
+
+function removeItemCard(btn) {
+  if (!confirm('Remove this item?')) return;
+  btn.closest('.product-card').remove();
+  calcTotal();
+}
+
+function attachCustomerPhoto(btn, mode) {
+  currentPhotoTarget = btn.closest('.product-card').querySelector('.photo-row');
+  const row = currentPhotoTarget;
+  if (row.children.length >= 5) { alert('Max 5 photos per item.'); return; }
+  const cam = document.getElementById('camInput');
+  const gal = document.getElementById('galInput');
+  const inp = mode === 'camera' ? cam : gal;
+  inp.value = '';
+  inp.onchange = (ev) => handlePhotoSelect(ev);
+  inp.click();
 }
 function calcTotal() {
   let total = 0;
-  document.querySelectorAll('#itemsBox .item-row').forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    total += toNumber(inputs[1].value) * toNumber(inputs[2].value);
+  document.querySelectorAll('#itemsBox .product-card').forEach(card => {
+    const qty = toNumber(card.querySelector('.i-qty').value);
+    const rate = toNumber(card.querySelector('.i-rate').value);
+    total += qty * rate;
   });
   document.getElementById('f-total').textContent = formatMoney(total);
   const paid = toNumber(document.getElementById('f-paid').value);
   const pending = Math.max(total - editExistingPaid - paid, 0);
   document.getElementById('f-pending').textContent = formatMoney(pending);
 }
-function saveBill() {
+async function saveBill() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Please write customer name'); return; }
   const items = [];
-  document.querySelectorAll('#itemsBox .item-row').forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    const iname = inputs[0].value.trim();
-    const qty = toNumber(inputs[1].value);
-    const rate = toNumber(inputs[2].value);
-    if (iname && qty > 0) items.push({ name: iname, qty, rate });
+  document.querySelectorAll('#itemsBox .product-card').forEach(card => {
+    const iname = (card.querySelector('.i-name').value || '').trim();
+    const qty = toNumber(card.querySelector('.i-qty').value);
+    const rate = toNumber(card.querySelector('.i-rate').value);
+    const photos = [];
+    card.querySelectorAll('.photo-row .photo-thumb').forEach(t => photos.push(t.dataset.src));
+    if (iname && qty > 0) items.push({ name: iname, qty, rate, photos });
   });
   if (!items.length) { alert('Add at least 1 item'); return; }
+
+  // Upload new photos to Firebase
+  const hasNewPhotos = items.some(it => it.photos.some(isDataUrl));
+  if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
+    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
+  }
+  showLoading('Photos upload ho rahi hain...');
+  try {
+    for (const it of items) {
+      const out = [];
+      for (const photo of it.photos) {
+        if (isDataUrl(photo)) {
+          if (fbStorage && fbAuth && fbAuth.currentUser) {
+            const url = await uploadPhoto(photo);
+            if (url) out.push(url);
+          }
+        } else {
+          out.push(photo);
+        }
+      }
+      it.photos = out;
+    }
+  } finally { hideLoading(); }
+
   let paid = toNumber(document.getElementById('f-paid').value);
   const total = itemsTotal({ items });
   const wasEditing = editingId !== null;
@@ -742,9 +798,17 @@ function renderDetail() {
   const pending = totalAmount(bill) - paid;
   const ptype = bill.ptype || '';
   let html = '<div class="meta">Date: ' + escapeHtml(bill.date || '-') + ' | Type: <span class="badge ' + ptype + '">' + escapeHtml(ptype) + '</span></div>';
-  (bill.items || []).forEach(it => {
-    html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) + '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
-  });
+ (bill.items || []).forEach((it, idx) => {
+  html += '<div style="padding:6px 0;border-bottom:1px solid #eee">' +
+    '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) +
+    '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>' +
+    (it.photos && it.photos.length
+      ? '<div class="photo-row">' + it.photos.map((src, i) =>
+          '<div class="photo-thumb" onclick="openViewerForCustomerItem(\'' + bill.id + '\',' + idx + ',' + i + ')">' +
+          '<img src="' + escapeHtml(src) + '"></div>').join('') + '</div>'
+      : '') +
+    '</div>';
+});
   html += '<div class="row" style="font-weight:bold;margin-top:8px"><span>Total</span><span>Rs. ' + formatMoney(totalAmount(bill)) + '</span></div>';
   if ((bill.payments || []).length) {
     html += '<h3 style="margin-top:10px">Payment History</h3>';
@@ -1394,15 +1458,16 @@ function attachPhoto(btn, mode) {
 function handlePhotoSelect(ev) {
   const f = ev.target.files[0];
   if (!f) return;
+  const row = currentPhotoTarget;
+  currentPhotoTarget = null;
+  if (!row) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     const dataUrl = e.target.result;
-    const row = currentPhotoTarget;
     if (!row || row.children.length >= 5) return;
     addPhotoThumb(row, dataUrl, row.children.length);
   };
   reader.readAsDataURL(f);
-  currentPhotoTarget = null;
 }
 
 function addPhotoThumb(row, src, idx) {
@@ -1434,6 +1499,13 @@ function openViewerForProduct(billId, productIdx, photoIdx) {
   const p = (b.products || [])[productIdx];
   if (!p) return;
   openViewer(p.photos || [], photoIdx);
+}
+function openViewerForCustomerItem(billId, itemIdx, photoIdx) {
+  const bill = bills.find(x => x.id === billId);
+  if (!bill) return;
+  const it = (bill.items || [])[itemIdx];
+  if (!it) return;
+  openViewer(it.photos || [], photoIdx);
 }
 
 /* ============ PHOTO VIEWER ============ */
