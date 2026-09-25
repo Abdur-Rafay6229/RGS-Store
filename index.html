@@ -166,7 +166,11 @@
 
 <!-- CUSTOMER LIST -->
 <div id="listScreen">
-  <div class="header"><h1 id="t-store">Rajpoot General Store</h1><p id="t-sub">Customer Bills Manager</p></div>
+  <div class="header">
+  <h1 id="t-store">Rajpoot General Store</h1>
+  <p id="t-sub">Customer Bills Manager</p>
+  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.0.0</span></p>
+</div>
   <div class="summary">
     <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
     <div><span id="t-pending">Total Pending</span><b id="totalPending">0</b></div>
@@ -348,6 +352,12 @@
     <button class="btn small gray" style="margin-top:5px" onclick="document.getElementById('importFile').click()">Import Backup</button>
     <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
   </div>
+  <div class="card" style="cursor:default;text-align:center">
+  <div style="font-size:12px;color:#666">
+    Rajpoot General Store<br>
+    <strong id="appVersionSettings">v1.0.0</strong>
+  </div>
+</div>
   <button class="btn" onclick="showList()">← Back to App</button>
 </div>
 
@@ -362,6 +372,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
 <script>
+  const APP_VERSION = 'v1.0.0';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -1535,8 +1546,7 @@ function updateViewer() {
   document.getElementById('viewerCounter').textContent = (viewerIndex + 1) + ' / ' + viewerSrcs.length;
   document.getElementById('viewerPrev').style.visibility = viewerIndex > 0 ? 'visible' : 'hidden';
   document.getElementById('viewerNext').style.visibility = viewerIndex < viewerSrcs.length - 1 ? 'visible' : 'hidden';
-  viewerScale = 1;
-  document.getElementById('viewerImg').style.transform = 'scale(1)';
+ if (window.__viewerResetZoom) window.__viewerResetZoom();
 }
 function viewerNav(d) {
   viewerIndex += d;
@@ -1548,49 +1558,144 @@ function viewerNav(d) {
   const img = document.getElementById('viewerImg');
   if (!body || !img) return;
 
+  let startX = 0, startY = 0;
+  let startDist = 0, startScale = 1;
+  let panX = 0, panY = 0;
+  let startPanX = 0, startPanY = 0;
+  let lastTap = 0;
+  let isDragging = false;
+  let hasMoved = false;
+
+  function applyTransform() {
+    img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + viewerScale + ')';
+  }
+
+  function resetPan() {
+    panX = 0; panY = 0;
+  }
+
+  // Clamp pan so image doesn't go too far
+  function clampPan() {
+    if (viewerScale <= 1) { panX = 0; panY = 0; return; }
+    const rect = img.getBoundingClientRect();
+    const maxX = (img.clientWidth * (viewerScale - 1)) / 2;
+    const maxY = (img.clientHeight * (viewerScale - 1)) / 2;
+    panX = Math.max(-maxX, Math.min(maxX, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+  }
+
+  // ---- TOUCH ----
   body.addEventListener('touchstart', (e) => {
+    hasMoved = false;
     if (e.touches.length === 2) {
-      viewerStartDist = Math.hypot(
+      // pinch start
+      startDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      viewerStartScale = viewerScale;
+      startScale = viewerScale;
+      startPanX = panX; startPanY = panY;
+    } else if (e.touches.length === 1) {
+      // drag start
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startPanX = panX;
+      startPanY = panY;
     }
   }, { passive: true });
 
   body.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && viewerStartDist > 0) {
+    if (e.touches.length === 2 && startDist > 0) {
+      // pinch zoom
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      let newScale = viewerStartScale * (dist / viewerStartDist);
+      let newScale = startScale * (dist / startDist);
       newScale = Math.max(1, Math.min(6, newScale));
       viewerScale = newScale;
-      img.style.transform = 'scale(' + newScale + ')';
+      if (viewerScale <= 1) resetPan();
+      clampPan();
+      applyTransform();
+      hasMoved = true;
+      e.preventDefault();
+    } else if (e.touches.length === 1 && isDragging && viewerScale > 1) {
+      // drag pan (only when zoomed)
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+      panX = startPanX + dx;
+      panY = startPanY + dy;
+      clampPan();
+      applyTransform();
       e.preventDefault();
     }
   }, { passive: false });
 
-  body.addEventListener('touchend', () => { viewerStartDist = 0; });
+  body.addEventListener('touchend', (e) => {
+    startDist = 0;
+    isDragging = false;
+  });
 
+  // ---- MOUSE (desktop) ----
+  let mouseDown = false, mx = 0, my = 0, mPanX = 0, mPanY = 0;
+
+  body.addEventListener('mousedown', (e) => {
+    mouseDown = true;
+    mx = e.clientX; my = e.clientY;
+    mPanX = panX; mPanY = panY;
+    img.style.cursor = viewerScale > 1 ? 'grabbing' : 'grab';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!mouseDown) return;
+    const dx = e.clientX - mx;
+    const dy = e.clientY - my;
+    panX = mPanX + dx;
+    panY = mPanY + dy;
+    clampPan();
+    applyTransform();
+  });
+
+  window.addEventListener('mouseup', () => {
+    mouseDown = false;
+    img.style.cursor = 'grab';
+  });
+
+  // ---- WHEEL ZOOM ----
   body.addEventListener('wheel', (e) => {
     e.preventDefault();
     let s = viewerScale + (e.deltaY < 0 ? 0.25 : -0.25);
     s = Math.max(1, Math.min(6, s));
     viewerScale = s;
-    img.style.transform = 'scale(' + s + ')';
+    if (viewerScale <= 1) resetPan();
+    clampPan();
+    applyTransform();
   }, { passive: false });
 
-  let lastTap = 0;
+  // ---- DOUBLE TAP / DOUBLE CLICK ----
   body.addEventListener('click', (e) => {
+    if (hasMoved) return;
     const now = Date.now();
     if (now - lastTap < 300) {
-      viewerScale = 1;
-      img.style.transform = 'scale(1)';
+      if (viewerScale > 1) {
+        viewerScale = 1;
+        resetPan();
+      } else {
+        viewerScale = 2.5;
+      }
+      applyTransform();
     }
     lastTap = now;
   });
+
+  // Reset helper — call this when opening a new photo
+  window.__viewerResetZoom = function() {
+    viewerScale = 1;
+    panX = 0; panY = 0;
+    applyTransform();
+  };
 })();
 
 /* ============ SETTINGS ============ */
@@ -1769,6 +1874,12 @@ window.addEventListener('load', () => {
   if (!hasPIN()) startSetup();
   else startLock();
   if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500);
+  
+  // 👇 Version dikhane wali lines
+  const vEl = document.getElementById('appVersion');
+  if (vEl) vEl.textContent = APP_VERSION;
+  const vsEl = document.getElementById('appVersionSettings');
+  if (vsEl) vsEl.textContent = APP_VERSION;
 });
 </script>
 
