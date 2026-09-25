@@ -1236,16 +1236,50 @@ function shareSupWhatsApp() {
 
 /* ============ PWA INSTALL ============ */
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); deferredPrompt = e;
-  const b = document.getElementById('installBtn'); if (b) b.classList.remove('hidden');
-});
-function installApp() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.classList.add('hidden'); });
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
-window.addEventListener('appinstalled', () => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.classList.add('hidden'); });
+function showInstallBtn(show) {
+  const b = document.getElementById('installBtn');
+  if (b) b.classList.toggle('hidden', !show);
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBtn(true);
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      showInstallBtn(!isStandalone());
+    });
+    return;
+  }
+  // Fallback: browser ne prompt nahi diya — steps dikhao
+  alert(
+    'INSTALL AS APP (Chrome on Android):\n\n' +
+    '1) Tap Chrome menu (⋮) → "Install app" → Install.\n' +
+    '   Only "Add to Home screen"/"Create shortcut" ka matlab hai\n' +
+    '   browser ko app install nahi karne de raha (see note below).\n\n' +
+    '2) Agar "Already installed" dikhaye (lekin icon nahi hai):\n' +
+    '   • Phone Settings → Apps → search "RGS Store" / "Rajpoot General Store"\n' +
+    '     → Uninstall (purana/purana tuta hua entry hatao).\n' +
+    '   • Home screen se purana shortcut delete karo (long-press → Remove).\n' +
+    '   • Phir yeh page Chrome mein kholo → ⋮ → Install app.\n\n' +
+    '3) App drawer mein bhi check karo — kabhi kabhi icon sirf\n' +
+    '   home screen par add nahi hota.'
+  );
+}
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  showInstallBtn(isStandalone());
+});
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
@@ -1255,6 +1289,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 window.addEventListener('load', () => {
   if (!hasPIN()) startSetup();
   else startLock();
+  // Standalone app nahi hai to Install button dikha do (prompt na bhi aaye to)
+  if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500);
 });
 </script>
 </body>

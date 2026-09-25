@@ -1,7 +1,7 @@
-const CACHE = 'rgs-v1';
-const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
+const CACHE = 'rgs-v3';
+const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
-// Install event — files ko cache karo
+// Install event — app shell cache karo
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
@@ -17,9 +17,39 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// ✅ fetch event — YEH ZAROORI HAI install ke liye
 self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  // Pages (navigations) → network first: taaki naya update turant mile,
+  // offline ho to cache se chale
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Baaki assets (icons, manifest, scripts) → cache first, miss ho to network
   e.respondWith(
-    caches.match(e.request).then((r) => r || fetch(e.request).catch(() => caches.match('./index.html')))
+    caches.match(req).then(
+      (r) =>
+        r ||
+        fetch(req)
+          .then((res) => {
+            if (res && res.status === 200) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy));
+            }
+            return res;
+          })
+          .catch(() => caches.match('./index.html'))
+    )
   );
 });

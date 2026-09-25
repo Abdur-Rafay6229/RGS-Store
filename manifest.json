@@ -1,16 +1,18 @@
 {
+  "id": "./",
   "name": "Rajpoot General Store",
   "short_name": "RGS Store",
   "description": "Customer & Supplier Bills Manager",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait",
   "background_color": "#f0f2f5",
   "theme_color": "#1a73e8",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
@@ -24,6 +26,12 @@
     {
       "src": "icon.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     }
