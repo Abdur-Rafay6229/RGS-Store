@@ -353,6 +353,16 @@
 <!-- ACCOUNTS (SIRF ADMIN) -->
 <div id="accountsScreen" class="hidden">
   <div class="header"><h1>👥 Accounts</h1><p>Admin only — kisi bhi user ka account kholein</p></div>
+
+  <!-- Top bar: yahan sirf Admin hi aata hai — hamesha apna darja dikhe -->
+  <div class="card" id="accountsAdminBar" style="cursor:default;background:#1a237e;color:#fff;border:none">
+    <div style="font-size:16px;line-height:1.3"><b>👑 ADMIN</b></div>
+    <div style="font-size:12px;margin-top:5px;opacity:.95">Account: <b id="accountsAdminEmail">—</b></div>
+    <div style="font-size:11px;margin-top:6px;opacity:.85;line-height:1.45">
+      Aap har user ka account bina password ke khol sakte hain. Aapka apna data usse alag rehta hai.
+    </div>
+  </div>
+
   <div class="card" style="cursor:default;background:#e8f0fe">
     <div class="meta" style="margin:0">
       Yeh list sirf Admin ko dikhti hai. Kisi account par <b>Open</b> dabane par uska data (bills, suppliers,
@@ -405,7 +415,7 @@
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Sirf Firebase Console se banaya gaya admin account admin hai
+    // Admin sirf isi (admins/{uid}) marker se banta hai — role client par kabhi nahi
     function isAdmin() {
       return request.auth != null
         &amp;&amp; exists(/databases/$(database)/documents/admins/$(request.auth.uid));
@@ -427,22 +437,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // 3) Admin marker — CLIENT kuch bhi likh/bole nahi (sirf Console)
+    // 3) Admin marker
+    //    - Sirf neeche fix kiye gaye admin email wala account APNA marker ek baar
+    //      khud bana sakta hai (ye email rules me likha hai — client kuch nahi badal sakta)
+    //    - Uske baad koi bhi ye doc badal/delete nahi kar sakta
     match /admins/{userId} {
       allow read: if request.auth != null
                   &amp;&amp; (request.auth.uid == userId || isAdmin());
-      allow write: if false;
+      allow create: if request.auth != null
+                    &amp;&amp; request.auth.uid == userId
+                    &amp;&amp; request.auth.token.email == 'abdurrafay6010@gmail.com'
+                    &amp;&amp; !exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      allow update, delete: if false;
     }
   }
 }</pre>
-      <p style="margin:8px 0 4px"><b>👑 Admin kaise banayein</b> (ye sirf ek baar karna hai):</p>
+      <p style="margin:8px 0 4px"><b>👑 Admin kaise bante hain</b> (sirf ek baar):</p>
       <ol style="margin:0 0 6px 18px;line-height:1.5">
-        <li>App me apne admin email se <b>Create New Account</b> karo aur login raho.</li>
-        <li>Neeche apna <b>UID</b> copy karo.</li>
-        <li>Console → <b>Firestore Database → Add collection</b>: collection ID = <b>admins</b>.</li>
-        <li>Document ID = wahi <b>UID</b>, field <b>role</b> = <b>admin</b> (string) → Save.</li>
-        <li>App me Settings → <b>Refresh Admin Status</b> dabao (ya app dobara kholo).</li>
+        <li>Upar wala poora rules Console me <b>Publish</b> karo.</li>
+        <li>App me <b>abdurrafay6010@gmail.com</b> se Sign In karo — login hote hi app
+            khud <b>admins</b> me aapka marker bana dega (rules isi email ko allow karte hain).</li>
+        <li>Phir Settings → <b>Refresh Admin Status</b> dabao → Role: <b>Admin 👑</b> dikhna chahiye.</li>
+        <li><i>Agar auto-claim na chale</i> (purane rules): neeche UID copy karo → Console →
+            collection <b>admins</b> → document ID = wahi UID → field <b>role</b> = <b>admin</b> → Save.</li>
       </ol>
+      <p style="margin:0 0 6px;font-size:11px;color:#888">
+        Admin email rules me fix hai — koi doosra user frontend/localStorage/URL badal kar
+        khud ko admin nahi bana sakta, aur aapka role sirf Firestore se check hota hai.
+      </p>
     <div class="row" style="gap:6px"><span>Your UID</span><span id="myUid" style="max-width:58%;word-break:break-all;font-size:11px">—</span></div>
     <button class="btn small gray" style="margin-top:6px" onclick="copyMyUid()">📋 Copy UID</button>
     <button class="btn small gray" style="margin-top:6px" onclick="refreshAdminStatus()">🔄 Refresh Admin Status</button>
@@ -581,6 +603,15 @@ function acctKey(base) { return activeDataUid ? base + '::' + activeDataUid : ba
 function isAdmin() { return adminFlag === true; }
 function ownerUidNow() { return activeDataUid || (fbAuth && fbAuth.currentUser ? fbAuth.currentUser.uid : ''); }
 
+// Admin ka email — yehi list Firestore rules me bhi likhi hai. Sirf inhi emails ko
+// rules apna admins/{uid} marker khud banane dete hain, isliye koi doosra user
+// frontend/localStorage/params badal kar khud ko admin nahi bana sakta.
+const ADMIN_EMAILS = ['abdurrafay6010@gmail.com'];
+function isConfiguredAdminEmail(em) {
+  const e = String(em || '').trim().toLowerCase();
+  return ADMIN_EMAILS.indexOf(e) !== -1;
+}
+
 // Purana (single-user) data — pehle login karne wala account claim kar le,
 // warna doosra user bhi wahi bills dekh leta. Sirf ek baar chalta hai.
 function migrateLegacyData() {
@@ -683,9 +714,30 @@ async function bootstrapAccountData() {
 async function fetchAdminFlag(showMsg) {
   adminFlag = false;
   if (!firebaseReady || !fbAuth || !fbAuth.currentUser) { if (showMsg) alert('Sign in nahi hai.'); return false; }
+  const user = fbAuth.currentUser;
   try {
-    const snap = await withTimeout(fbDb.collection('admins').doc(fbAuth.currentUser.uid).get(), 15000, 'Admin check timeout');
+    const ref = fbDb.collection('admins').doc(user.uid);
+    const snap = await withTimeout(ref.get(), 15000, 'Admin check timeout');
     adminFlag = !!snap.exists && (snap.data() || {}).role !== 'user';
+
+    // Fix kiye hue admin email ne login kiya par marker abhi nahi hai → ek baar khud
+    // banao. Rules sirf isi email ko allow karte hain (email server-side token me aata
+    // hai), isliye koi doosra user ye claim nahi kar sakta.
+    if (!adminFlag && isConfiguredAdminEmail(user.email)) {
+      try {
+        await withTimeout(ref.set({
+          role: 'admin',
+          email: user.email || '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }), 15000, 'Admin claim timeout');
+        adminFlag = true;
+        if (showMsg) alert('✅ Aap admin ban gaye — Accounts section ab home screen par dikhne lagega.');
+      } catch (ce) {
+        console.warn('Admin auto-claim failed (purane rules?) — Console se manually banayein:', ce);
+        if (showMsg) alert('❌ Admin auto-claim fail:\n\n' + cloudErrorText(ce) +
+          '\n\nSettings → Account → Rules wala block dobara Console me Publish karo, phir yehi button dobara dabao.');
+      }
+    }
   } catch (e) {
     console.warn('Admin status check failed:', e);
     adminFlag = false;
@@ -3193,6 +3245,8 @@ let profilesCache = [];
 
 async function openAccounts() {
   if (!isAdmin()) { alert('Yeh section sirf Admin ke liye hai.'); return; }
+  const ae = document.getElementById('accountsAdminEmail');
+  if (ae) ae.textContent = (fbAuth && fbAuth.currentUser) ? (fbAuth.currentUser.email || fbAuth.currentUser.uid) : '—';
   showScreen('accountsScreen');
   const list = document.getElementById('accountsList');
   if (list) list.innerHTML = '<div class="card" style="cursor:default">⏳ Accounts list aa rahi hai...</div>';
@@ -3481,7 +3535,7 @@ window.addEventListener('popstate', () => {
   <option value="ml"></option>
   <option value="dozen"></option>
   <option value="piece"></option>
-  <option value="packet"></option>
+<option value="packet"></option>
   <option value="bag"></option>
   <option value="box"></option>
   <option value="bottle"></option>
