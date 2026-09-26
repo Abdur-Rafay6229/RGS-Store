@@ -16,8 +16,6 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; -webkit-tap-highlight-color:transparent; }
   body { background:#f0f2f5; max-width:600px; margin:0 auto; padding:60px 15px 80px; -webkit-text-size-adjust:100%; }
-  body.urdu { font-size:16px; }
-  .urdu .lang-btn { right:auto; left:10px; }
   .header { background:#1a73e8; color:#fff; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px; position:relative; }
   .header h1 { font-size:20px; }
   .header p { font-size:12px; opacity:.9; }
@@ -36,7 +34,6 @@
   .btn.gray { background:#5f6368; }
   .btn.small { width:auto; padding:6px 12px; font-size:13px; }
   .btn.tiny { width:auto; padding:4px 8px; font-size:12px; }
-  .lang-btn { position:fixed; top:10px; right:10px; z-index:99; width:auto; padding:8px 14px; }
   .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); cursor:pointer; position:relative; }
   .card h3 { font-size:16px; margin-bottom:5px; }
   .card .meta { font-size:12px; color:#666; margin-bottom:5px; }
@@ -100,14 +97,14 @@
 
   /* ===== PHOTO VIEWER ===== */
   .viewer-overlay { position:fixed; inset:0; background:#000; z-index:9999; display:flex; flex-direction:column; }
-  .viewer-top { display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:rgba(0,0,0,.7); color:#fff; }
+  .viewer-top { display:flex; justify-content:space-between; align-items:center; padding:calc(12px + env(safe-area-inset-top)) 15px 12px; background:rgba(0,0,0,.7); color:#fff; }
   .viewer-top button { background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 14px; border-radius:20px; font-size:14px; cursor:pointer; }
   .viewer-body { flex:1; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; touch-action:none; }
   .viewer-img { max-width:100%; max-height:100%; transition:transform .05s; user-select:none; -webkit-user-drag:none; }
   .viewer-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.2); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:22px; cursor:pointer; }
   .viewer-nav.prev { left:12px; }
   .viewer-nav.next { right:12px; }
-  .viewer-info { text-align:center; padding:10px; color:#fff; font-size:12px; background:rgba(0,0,0,.7); }
+  .viewer-info { text-align:center; padding:10px 10px calc(10px + env(safe-area-inset-bottom)); color:#fff; font-size:12px; background:rgba(0,0,0,.7); }
 
   /* ===== FILTER BAR ===== */
   .filter-bar { background:#fff; border-radius:8px; padding:8px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
@@ -123,8 +120,8 @@
 <div id="setupScreen" class="lock-wrap hidden">
   <div class="setup-box">
     <div class="lock-icon">🏪</div>
-    <div class="lock-title">Welcome to RGS Store</div>
-    <div class="lock-sub">Set a 4-digit PIN to protect your data</div>
+    <div class="lock-title" id="setupTitle">Welcome to RGS Store</div>
+    <div class="lock-sub" id="setupSub">Set a 4-digit PIN to protect your data</div>
     <div class="pin-display" id="setupPinDisplay">
       <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
     </div>
@@ -160,7 +157,7 @@
     <div class="error-msg" id="loginErr"></div>
     <button class="btn" onclick="doLogin()">Sign In</button>
     <button class="btn gray" onclick="doSignup()">Create New Account</button>
-    <button class="link-btn" onclick="showList()">← Back to app</button>
+    <button class="link-btn" onclick="goBackFromLogin()">← Back</button>
   </div>
 </div>
 
@@ -169,7 +166,7 @@
   <div class="header">
   <h1 id="t-store">Rajpoot General Store</h1>
   <p id="t-sub">Customer Bills Manager</p>
-  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.0.0</span></p>
+  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.0.2</span></p>
 </div>
   <div class="summary">
     <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
@@ -338,7 +335,7 @@
   </div>
   <div class="viewer-body" id="viewerBody">
     <button class="viewer-nav prev" id="viewerPrev" onclick="viewerNav(-1)">‹</button>
-    <img class="viewer-img" id="viewerImg" src="" alt="">
+    <img class="viewer-img" id="viewerImg" alt="Bill photo">
     <button class="viewer-nav next" id="viewerNext" onclick="viewerNav(1)">›</button>
   </div>
   <div class="viewer-info">Pinch / scroll to zoom • Double-tap to reset</div>
@@ -358,6 +355,7 @@
     <h3>☁️ Cloud Backup</h3>
     <div class="row" style="margin-top:8px"><span>Status</span><span id="cloudStatus">Not signed in</span></div>
     <div class="row"><span>Last sync</span><span id="lastSync">—</span></div>
+    <div class="row"><span>Sync status</span><span id="syncErr">—</span></div>
     <button class="btn small" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign In</button>
     <button class="btn small green hidden" style="margin-top:5px" id="syncBtn" onclick="syncNow()">Sync Now</button>
   </div>
@@ -370,7 +368,7 @@
   <div class="card" style="cursor:default;text-align:center">
   <div style="font-size:12px;color:#666">
     Rajpoot General Store<br>
-    <strong id="appVersionSettings">v1.0.0</strong>
+    <strong id="appVersionSettings">v1.0.2</strong>
   </div>
 </div>
   <button class="btn" onclick="showList()">← Back to App</button>
@@ -387,7 +385,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.0.0';
+  const APP_VERSION = 'v1.0.2';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -417,9 +415,23 @@ const BIO_CRED_KEY = 'rgs_biometric_cred';
 const BIO_ENABLED_KEY = 'rgs_biometric_enabled';
 
 async function hashPin(pin) {
-  const buf = new TextEncoder().encode(String(pin) + PIN_SALT);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const input = String(pin) + PIN_SALT;
+  // crypto.subtle sirf secure context (https / localhost) par milta hai.
+  // Fallback: synchronous FNV-1a based hash taaki app http / file:// par bhi chale.
+  if (crypto && crypto.subtle && crypto.subtle.digest) {
+    try {
+      const buf = new TextEncoder().encode(input);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { console.warn('subtle digest failed, using fallback hash', e); }
+  }
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 + c + i, 0x85ebca6b) >>> 0;
+  }
+  return 'fb-' + h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
 }
 function hasPIN() { return !!localStorage.getItem(PIN_KEY); }
 function isBioEnabled() { return localStorage.getItem(BIO_ENABLED_KEY) === '1'; }
@@ -433,7 +445,8 @@ function buildKeypad(containerId, onDigit, onBack) {
     if (k === 'bio') {
       b.textContent = '👆'; b.className = 'wide';
       b.onclick = () => tryBiometric();
-      if (!isBioEnabled() || !hasBioCred()) b.style.visibility = 'hidden';
+      // hasPIN() zaroori — warna setup screen par bio button PIN banaaye bina app khol deta tha
+      if (!isBioEnabled() || !hasBioCred() || !hasPIN()) b.style.visibility = 'hidden';
     } else if (k === 'back') {
       b.textContent = '⌫'; b.onclick = () => onBack();
     } else {
@@ -446,36 +459,125 @@ function updateDots(displayId, value) {
   document.querySelectorAll('#' + displayId + ' .pin-dot').forEach((d, i) => d.classList.toggle('filled', i < value.length));
 }
 
-let setupPin1 = '';
+let setupPin1 = '', setupPin2 = '', setupStage = 'first';
+
+function setSetupStage(stage) {
+  setupStage = stage;
+  const title = document.getElementById('setupTitle');
+  const sub = document.getElementById('setupSub');
+  if (!title || !sub) return;
+  if (stage === 'first') {
+    title.textContent = 'Welcome to RGS Store';
+    sub.textContent = 'Set a 4-digit PIN to protect your data';
+  } else {
+    title.textContent = 'Confirm PIN';
+    sub.textContent = 'Same 4 digits ek baar aur enter karo';
+  }
+}
+
 function startSetup() {
-  setupPin1 = '';
+  setupPin1 = ''; setupPin2 = '';
+  setSetupStage('first');
   updateDots('setupPinDisplay', '');
   document.getElementById('setupErr').textContent = '';
   buildKeypad('setupKeypad',
     (d) => {
-      if (setupPin1.length >= 4) return;
-      setupPin1 += d; updateDots('setupPinDisplay', setupPin1);
-      if (setupPin1.length === 4) setTimeout(() => confirmSetupPin(), 150);
+      const errEl = document.getElementById('setupErr');
+      if (setupStage === 'first') {
+        if (setupPin1.length >= 4) return;
+        setupPin1 += d;
+        updateDots('setupPinDisplay', setupPin1);
+        if (setupPin1.length === 4) {
+          setTimeout(() => { setupPin2 = ''; setSetupStage('confirm'); updateDots('setupPinDisplay', ''); }, 200);
+        }
+      } else {
+        errEl.textContent = '';
+        if (setupPin2.length >= 4) return;
+        setupPin2 += d;
+        updateDots('setupPinDisplay', setupPin2);
+        if (setupPin2.length === 4) setTimeout(() => finishSetup(), 200);
+      }
     },
-    () => { setupPin1 = setupPin1.slice(0, -1); updateDots('setupPinDisplay', setupPin1); }
+    () => {
+      if (setupStage === 'confirm') {
+        if (setupPin2.length === 0) {
+          // Confirm step par empty backspace → step 1 dobara shuru.
+          // (Purana PIN chhod diya tha to dots full reh kar digits ignore ho rahe the — dead keys)
+          setupPin1 = '';
+          setSetupStage('first');
+          updateDots('setupPinDisplay', '');
+          return;
+        }
+        setupPin2 = setupPin2.slice(0, -1);
+        updateDots('setupPinDisplay', setupPin2);
+      } else {
+        setupPin1 = setupPin1.slice(0, -1);
+        updateDots('setupPinDisplay', setupPin1);
+      }
+    }
   );
   showScreen('setupScreen');
 }
-async function confirmSetupPin() {
-  const pin1 = setupPin1; setupPin1 = '';
-  const pin2 = prompt('Confirm your 4-digit PIN:');
-  if (pin2 === null) { startSetup(); return; }
-  if (pin1 !== pin2) { document.getElementById('setupErr').textContent = 'PINs did not match. Try again.'; startSetup(); return; }
-  localStorage.setItem(PIN_KEY, await hashPin(pin1));
-  if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()) {
-    if (confirm('Enable fingerprint / face unlock?')) await registerBiometric();
+
+async function finishSetup() {
+  const pin1 = setupPin1, pin2 = setupPin2;
+  if (!pin1 || !pin2 || pin1 !== pin2) {
+    document.getElementById('setupErr').textContent = 'PINs did not match. Confirm step dobara karo.';
+    if (navigator.vibrate) navigator.vibrate(200);
+    setupPin2 = '';
+    setSetupStage('confirm');
+    updateDots('setupPinDisplay', '');
+    return;
   }
+  try {
+    localStorage.setItem(PIN_KEY, await hashPin(pin1));
+  } catch (e) { alert('PIN save nahi ho paya. Storage blocked hai.'); return; }
+  setupPin1 = ''; setupPin2 = '';
+  try {
+    if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()) {
+      if (confirm('Enable fingerprint / face unlock?')) await registerBiometric();
+    }
+  } catch (e) { console.warn('Biometric prompt failed:', e); }
   showList();
 }
 function skipSetup() { if (confirm('Skip PIN? Your data will not be protected on this device.')) showList(); }
 
 let lockPin = '';
 let pinAttempts = 0;
+let pinLockUntil = 0;   // brute-force cooldown (timestamp)
+let lockTicker = null;
+const PIN_LOCK_STEP_MS = 30000;
+const PIN_LOCK_MAX_MS = 300000;
+
+function pinLockLeft() { return Math.max(0, pinLockUntil - Date.now()); }
+function showPinLockMsg() {
+  const left = pinLockLeft();
+  if (left <= 0) return false;
+  document.getElementById('lockErr').textContent =
+    'Too many wrong PINs. Wait ' + Math.ceil(left / 1000) + ' seconds.';
+  return true;
+}
+// 5 galti ke baad 30s, har 5 galti par double (max 5 min) — PIN guessing rokne ke liye
+function startPinLockout() {
+  const stage = Math.floor(Math.max(0, pinAttempts - 5) / 5);
+  pinLockUntil = Date.now() + Math.min(PIN_LOCK_STEP_MS * Math.pow(2, stage), PIN_LOCK_MAX_MS);
+  startLockTicker();
+}
+function startLockTicker() {
+  clearInterval(lockTicker);
+  if (pinLockUntil === 0) return;   // koi lock hi nahi laga — attempts ko chhoona nahi
+  lockTicker = setInterval(() => {
+    if (!screenVisible('lockScreen') || pinLockUntil === 0) {
+      clearInterval(lockTicker); lockTicker = null; return;
+    }
+    if (pinLockLeft() > 0) { showPinLockMsg(); return; }
+    clearInterval(lockTicker); lockTicker = null;
+    // Cooldown khatam → nayi chance (warna owner hamesha ke liye lock na ho jaye)
+    pinAttempts = 0; pinLockUntil = 0;
+    const el = document.getElementById('lockErr');
+    if (el && el.textContent.indexOf('Too many wrong PINs') === 0) el.textContent = '';
+  }, 1000);
+}
 function startLock() {
   lockPin = '';
   updateDots('lockPinDisplay', '');
@@ -484,23 +586,38 @@ function startLock() {
   if (isBioEnabled() && hasBioCred()) bioBtn.classList.remove('hidden'); else bioBtn.classList.add('hidden');
   buildKeypad('lockKeypad',
     (d) => {
+      if (pinLockLeft() > 0) { showPinLockMsg(); return; }   // cooldown me digits band
       if (lockPin.length >= 4) return;
+      document.getElementById('lockErr').textContent = '';
       lockPin += d; updateDots('lockPinDisplay', lockPin);
       if (lockPin.length === 4) setTimeout(() => verifyPin(), 150);
     },
-    () => { lockPin = lockPin.slice(0, -1); updateDots('lockPinDisplay', lockPin); }
+    () => {
+      if (pinLockLeft() > 0) return;
+      lockPin = lockPin.slice(0, -1); updateDots('lockPinDisplay', lockPin);
+    }
   );
   showScreen('lockScreen');
-  if (isBioEnabled() && hasBioCred()) setTimeout(() => tryBiometric(), 400);
+  showPinLockMsg();
+  startLockTicker();
+  if (isBioEnabled() && hasBioCred()) {
+    // Sirf tab jab user ne kuch type na kiya ho — warna WebAuthn prompt beech me aa kar
+    // PIN entry block kar deta tha
+    setTimeout(() => { if (lockPin.length === 0 && pinLockLeft() === 0 && screenVisible('lockScreen')) tryBiometric(); }, 400);
+  }
 }
 async function verifyPin() {
   const entered = lockPin; lockPin = '';
+  if (pinLockLeft() > 0) { showPinLockMsg(); return; }
   const stored = localStorage.getItem(PIN_KEY);
   const hash = await hashPin(entered);
-  if (hash === stored) { pinAttempts = 0; updateDots('lockPinDisplay', ''); showList(); }
-  else {
+  if (stored && hash === stored) {
+    pinAttempts = 0; pinLockUntil = 0;
+    updateDots('lockPinDisplay', ''); showList();
+  } else {
     pinAttempts++;
-    document.getElementById('lockErr').textContent = 'Wrong PIN. Try again. (' + pinAttempts + ')';
+    if (pinAttempts >= 5) { startPinLockout(); showPinLockMsg(); }
+    else document.getElementById('lockErr').textContent = 'Wrong PIN. Try again. (' + pinAttempts + ')';
     updateDots('lockPinDisplay', '');
     if (navigator.vibrate) navigator.vibrate(200);
   }
@@ -537,7 +654,7 @@ async function tryBiometric() {
     const assertion = await navigator.credentials.get({
       publicKey: { challenge, allowCredentials: [{ id: idBytes, type: 'public-key' }], timeout: 60000, userVerification: 'required' }
     });
-    if (assertion) { lockPin = ''; showList(); }
+    if (assertion) { lockPin = ''; pinAttempts = 0; pinLockUntil = 0; showList(); }
   } catch (e) { document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.'; }
 }
 
@@ -560,38 +677,104 @@ function escapeHtml(v = '') {
 }
 function formatMoney(v) { return Number(v || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 }); }
 function toNumber(v) { const n = Number(v); return isFinite(n) && n > 0 ? n : 0; }
-function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : today(); }
+// Sirf format nahi, asli calendar date bhi check karo (misal: 2026-99-99 galat hai,
+// lekin regex ise theek maan leta tha — isse payment history me invalid dates chali jaati thin)
+function isValidDateStr(v) {
+  const s = String(v || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const p = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  return dt.getUTCFullYear() === p[0] && dt.getUTCMonth() === p[1] - 1 && dt.getUTCDate() === p[2];
+}
+function validDate(v) { return isValidDateStr(v) ? String(v) : today(); }
 function isDataUrl(s) { return typeof s === 'string' && s.startsWith('data:'); }
+// Number input ke liye: sirf valid number ya khaali string (import/cloud data se injection rokne ke liye)
+function numVal(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  const n = Number(v);
+  return isFinite(n) ? String(n) : '';
+}
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
 
 /* ============ STORAGE ============ */
-function loadBills() {
-  return readJSON('rgs_bills').map(bill => {
+const PTYPES = ['cash', 'online', 'credit'];
+// Sirf safe badge class allow karo (stored/imported data se class injection rokne ke liye)
+function ptypeClass(v) { return PTYPES.indexOf(v) >= 0 ? v : ''; }
+// Safe badge markup: class + text hamesha whitelist se
+function ptypeBadge(v, fallback) {
+  const c = ptypeClass(v) || ptypeClass(fallback) || 'credit';
+  return '<span class="badge ' + c + '">' + escapeHtml(c) + '</span>';
+}
+// id sirf URL/HTML-safe characters rakhe (inline onclick me use hota hai)
+function safeId(v) { return (/^[A-Za-z0-9_-]+$/.test(String(v || '')) ? String(v) : ''); }
+
+function normalizeBills(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(bill => {
     if (!bill || typeof bill !== 'object') return null;
-    if (!bill.id) bill.id = uid();
+    const id = safeId(bill.id);
+    bill.id = id || uid();
     if (!Array.isArray(bill.items)) bill.items = [];
     if (!Array.isArray(bill.payments)) bill.payments = [];
+    if (!Array.isArray(bill.photos)) bill.photos = [];
+    if (typeof bill.name !== 'string') bill.name = '';
+    if (typeof bill.date !== 'string') bill.date = '';
+    if (PTYPES.indexOf(bill.ptype) < 0) bill.ptype = 'cash';
+    // Import/cloud data me negative/NaN values aa sakti hain — totals bigad deti hain
+    bill.items = bill.items.filter(it => it && typeof it === 'object').map(it => ({
+      name: typeof it.name === 'string' ? it.name : '',
+      qty: toNumber(it.qty),
+      rate: toNumber(it.rate)
+    }));
+    bill.payments = bill.payments
+      .filter(p => p && typeof p === 'object' && isFinite(Number(p.amount)) && toNumber(p.amount) > 0)
+      .map(p => ({ amount: toNumber(p.amount), date: typeof p.date === 'string' ? p.date : '' }));
     return bill;
   }).filter(Boolean);
 }
-function loadSupBills() {
-  return readJSON('rgs_suppliers').map(b => {
+
+function normalizeSupBills(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(b => {
     if (!b || typeof b !== 'object') return null;
-    if (!b.id) b.id = uid();
+    const id = safeId(b.id);
+    b.id = id || uid();
     if (!Array.isArray(b.payments)) b.payments = [];
     if (!Array.isArray(b.products)) b.products = [];
     if (!Array.isArray(b.photos)) b.photos = [];
-    if (typeof b.ptype !== 'string') b.ptype = 'credit';
+    if (typeof b.name !== 'string') b.name = '';
+    if (typeof b.date !== 'string') b.date = '';
+    if (PTYPES.indexOf(b.ptype) < 0) b.ptype = 'credit';
     if (typeof b.deliveryDate !== 'string') b.deliveryDate = '';
     if (typeof b.orderNo !== 'string') b.orderNo = '';
+    b.payments = b.payments
+      .filter(p => p && typeof p === 'object' && isFinite(Number(p.amount)) && toNumber(p.amount) > 0)
+      .map(p => ({ amount: toNumber(p.amount), date: typeof p.date === 'string' ? p.date : '' }));
+    b.products = b.products.filter(p => p && typeof p === 'object').map(p => ({
+      name: typeof p.name === 'string' ? p.name : '',
+      qtyCartons: toNumber(p.qtyCartons),
+      rateCartons: toNumber(p.rateCartons),
+      qtyUnits: toNumber(p.qtyUnits),
+      rateUnits: toNumber(p.rateUnits),
+      unitType: typeof p.unitType === 'string' ? p.unitType : ''
+    }));
+    b.photos = b.photos.filter(s => typeof s === 'string' && (s.startsWith('data:') || s.startsWith('http') || s.startsWith('blob:')));
     return b;
   }).filter(Boolean);
 }
+
+function loadBills() { return normalizeBills(readJSON('rgs_bills')); }
+function loadSupBills() { return normalizeSupBills(readJSON('rgs_suppliers')); }
+function normalizeOpenings(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  // Values sanitize: sirf non-negative finite numbers (string/negative imported values ke liye)
+  const out = {};
+  Object.keys(v).forEach(k => { if (typeof k === 'string' && k.trim()) out[k] = toNumber(v[k]); });
+  return out;
+}
 function loadOpenings() {
-  try {
-    const v = JSON.parse(localStorage.getItem('rgs_supplier_openings') || '{}');
-    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
-  } catch { return {}; }
+  try { return normalizeOpenings(JSON.parse(localStorage.getItem('rgs_supplier_openings') || '{}')); }
+  catch { return {}; }
 }
 
 let bills = loadBills();
@@ -602,27 +785,51 @@ let currentBillId = null, currentSupId = null;
 let editingId = null, editingSupId = null;
 let editExistingPaid = 0, supExistingPaid = 0;
 let currentSupOpening = 0;
-let formTitleKey = 'formtitle', supFormTitleKey = 'supformtitle';
+let loginReturnTo = 'listScreen';
+// Form se hatai gayi photos (Storage files) — sirf save hone ke baad delete hoti hain,
+// warna user ne save cancel kar diya to bill me toot-i hui photo reh jaati.
+let pendingPhotoDeletes = [];
+function queuePhotoDelete(src) { if (typeof src === 'string' && src.startsWith('http')) pendingPhotoDeletes.push(src); }
+function flushPhotoDeletes() {
+  const list = pendingPhotoDeletes.slice();
+  pendingPhotoDeletes = [];
+  list.forEach(deleteRemotePhoto);
+}
 
 function saveToStorage() { const ok = safeSet('rgs_bills', bills); if (ok) scheduleAutoSync(); return ok; }
 function supSave() { const ok = safeSet('rgs_suppliers', supBills); if (ok) scheduleAutoSync(); return ok; }
 function saveOpenings() { const ok = safeSet('rgs_supplier_openings', supplierOpenings); if (ok) scheduleAutoSync(); return ok; }
 function getBill() { return bills.find(b => b.id === currentBillId) || null; }
 function getSup() { return supBills.find(b => b.id === currentSupId) || null; }
-function screenVisible(id) { return !document.getElementById(id).classList.contains('hidden'); }
+function screenVisible(id) {
+  const el = document.getElementById(id);
+  return !!el && !el.classList.contains('hidden');
+}
 
 window.addEventListener('storage', (e) => {
-  if (e.key === 'rgs_bills') { bills = loadBills(); if (screenVisible('listScreen')) renderList(); }
-  if (e.key === 'rgs_suppliers') {
+  // e.key === null ka matlab storage.clear() hua hai
+  if (e.key === null || e.key === 'rgs_bills') {
+    bills = loadBills();
+    if (screenVisible('listScreen')) renderList();
+    else if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
+  }
+  if (e.key === null || e.key === 'rgs_suppliers') {
     supBills = loadSupBills();
     if (screenVisible('supListScreen')) renderSupplierList();
     else if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
+  }
+  if (e.key === null || e.key === 'rgs_supplier_openings') {
+    supplierOpenings = loadOpenings();
+    if (screenVisible('openingsScreen')) renderOpenings();
+    else if (screenVisible('supListScreen')) renderSupplierList();
   }
 });
 
 /* ============ SCREEN NAV ============ */
 const ALL_SCREENS = ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen','openingsScreen'];
 function showScreen(screen) {
+  // Form chhodne par queued photo deletes cancel — save nahi hua to file delete nahi honi chahiye
+  if (screen !== 'formScreen' && screen !== 'supFormScreen') pendingPhotoDeletes = [];
   ALL_SCREENS.forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById(screen).classList.remove('hidden');
   window.scrollTo(0, 0);
@@ -645,7 +852,7 @@ function renderList() {
     card.className = 'card';
     card.onclick = () => openDetail(bill.id);
     const clearBadge = pending <= 0 ? '<span class="badge cash" style="margin-left:8px">Clear</span>' : '';
-    const ptype = bill.ptype || '';
+    const ptype = ptypeClass(bill.ptype);
     card.innerHTML =
       '<h3>' + escapeHtml(bill.name) + clearBadge + '</h3>' +
       '<div class="meta">' + escapeHtml(bill.date || '-') + '</div>' +
@@ -664,7 +871,7 @@ function totalAmount(bill) { return itemsTotal(bill); }
 
 /* ============ CUSTOMER: FORM ============ */
 function newBill() {
-  editingId = null; editExistingPaid = 0;
+  editingId = null; editExistingPaid = 0; pendingPhotoDeletes = [];
   document.getElementById('t-formtitle').textContent = 'New Bill';
   document.getElementById('f-name').value = '';
   document.getElementById('f-date').value = today();
@@ -680,6 +887,7 @@ function newBill() {
 function editBill() {
   const bill = getBill(); if (!bill) return;
   editingId = bill.id; editExistingPaid = totalPaid(bill);
+  pendingPhotoDeletes = [];   // naya form khula → purane queued deletes kisi aur bill par lagu nahi honge
   document.getElementById('t-formtitle').textContent = 'Edit Bill';
   document.getElementById('f-name').value = bill.name || '';
   document.getElementById('f-date').value = bill.date || today();
@@ -734,46 +942,71 @@ function calcTotal() {
   const pending = Math.max(total - editExistingPaid - paid, 0);
   document.getElementById('f-pending').textContent = formatMoney(pending);
 }
+// Bill photos collect + (agar login hai) Storage me upload.
+// Returns: null = user ne cancel kiya (save abort), warna { photos, failed, cancelled, uploaded }
+// Note: jo nayi photos upload/skip hui unka hisaab `failed` me jata hai — warna user ko
+// pata hi nahi chalta ki uski photo save hui ya nahi.
+async function collectPhotos(rowSelector) {
+  const raw = [];
+  document.querySelectorAll(rowSelector + ' .photo-thumb').forEach(t => {
+    if (t.dataset && t.dataset.src) raw.push(t.dataset.src);
+  });
+  const hasNew = raw.some(isDataUrl);
+  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
+
+  if (!hasNew) return { photos: raw, failed: 0, cancelled: false, uploaded: [] };
+
+  if (!isLoggedIn) {
+    if (!confirm('Photos ke liye login zaroori hai. Login ke bina nayi photos save nahi hongi (purani photos waisi hi rahengi). Continue?')) return null;
+    const kept = raw.filter(s => !isDataUrl(s));
+    return { photos: kept, failed: raw.length - kept.length, cancelled: false, uploaded: [] };
+  }
+
+  const out = [];
+  const uploaded = [];
+  let failed = 0;
+  // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
+  // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
+  showLoading('Photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
+  try {
+    for (const p of raw) {
+      if (isDataUrl(p)) {
+        if (loadingCancelled) { failed++; continue; }   // user ne Cancel dabaya
+        try {
+          const url = await uploadPhoto(p);
+          if (url) { out.push(url); uploaded.push(url); } else failed++;
+        } catch (e) {
+          console.warn('Photo upload fail:', e);
+          failed++;
+        }
+      } else {
+        out.push(p);
+      }
+    }
+  } finally { hideLoading(); }
+  return { photos: out, failed, cancelled: loadingCancelled, uploaded };
+}
+
 async function saveBill() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Please write customer name'); return; }
   const items = [];
+  let incomplete = 0;
   document.querySelectorAll('#itemsBox .product-card').forEach(card => {
     const iname = (card.querySelector('.i-name').value || '').trim();
     const qty = toNumber(card.querySelector('.i-qty').value);
     const rate = toNumber(card.querySelector('.i-rate').value);
+    const hasData = !!iname || qty > 0 || rate > 0;
     if (iname && qty > 0) items.push({ name: iname, qty, rate });
+    else if (hasData) incomplete++;   // data bhara hai par poora nahi — chup-chaap drop mat karo
   });
+  if (incomplete) {
+    alert(incomplete + ' item row adhoori hai (naam aur Qty dono zaroori hain).\nPehle use theek karo ya ✕ Remove se hata do.');
+    return;
+  }
   if (!items.length) { alert('Add at least 1 item'); return; }
 
-  // Collect bill-level photos
-  const billPhotosRaw = [];
-  document.querySelectorAll('#customerPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
-  const hasNewPhotos = billPhotosRaw.some(isDataUrl);
-  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
-
-  const billPhotos = [];
-  if (hasNewPhotos && !isLoggedIn) {
-    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
-    // Login nahi hai — photos skip, URLs save nahi honge
-  } else if (hasNewPhotos && isLoggedIn) {
-    showLoading('Photos upload ho rahi hain...');
-    try {
-      for (const p of billPhotosRaw) {
-        if (isDataUrl(p)) {
-          const url = await uploadPhoto(p);
-          if (url) billPhotos.push(url);
-          else console.warn('1 photo upload fail hui, skip kar di');
-        } else {
-          billPhotos.push(p);
-        }
-      }
-    } finally { hideLoading(); }
-  } else {
-    // Koi new photo nahi
-    billPhotos.push(...billPhotosRaw);
-  }
-
+  // Payment validation pehle — cancel hone par photo upload na ho
   let paid = toNumber(document.getElementById('f-paid').value);
   const total = itemsTotal({ items });
   const wasEditing = editingId !== null;
@@ -781,20 +1014,33 @@ async function saveBill() {
     if (!confirm('Amount paid is more than total. Extra will not be counted. Continue?')) return;
     paid = Math.max(total - editExistingPaid, 0);
   }
+
+  // Bill photos (upload)
+  const photoRes = await collectPhotos('#customerPhotoRow');
+  if (!photoRes) return;
+  const billPhotos = photoRes.photos;
+
   const billData = {
     name,
     date: validDate(document.getElementById('f-date').value),
-    ptype: document.getElementById('f-ptype').value || 'cash',
+    ptype: ptypeClass(document.getElementById('f-ptype').value) || 'cash',
     items, payments: [],
     photos: billPhotos
   };
   if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('f-paiddate').value) });
   if (wasEditing) {
+    billData.id = editingId;
     const idx = bills.findIndex(b => b.id === editingId);
-    if (idx >= 0) { billData.id = editingId; billData.payments = (bills[idx].payments || []).concat(billData.payments); bills[idx] = billData; }
+    if (idx >= 0) billData.payments = (bills[idx].payments || []).concat(billData.payments);
+    if (idx >= 0) bills[idx] = billData; else bills.push(billData);
   } else { billData.id = uid(); bills.push(billData); }
   editingId = null; editExistingPaid = 0;
-  if (!saveToStorage()) return;
+  if (!saveToStorage()) {
+    (photoRes.uploaded || []).forEach(deleteRemotePhoto);  // save fail → abhi upload ki gayi files bhi hata do
+    return;
+  }
+  flushPhotoDeletes();   // ab bill me photo sach me nahi hai → Storage se delete safe hai
+  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gayi.');
   if (wasEditing) openDetail(billData.id); else showList();
 }
 function openDetail(id) { currentBillId = id; renderDetail(); showScreen('detailScreen'); }
@@ -803,7 +1049,7 @@ function renderDetail() {
   document.getElementById('d-name').textContent = bill.name || '-';
   const paid = totalPaid(bill);
   const pending = totalAmount(bill) - paid;
-  const ptype = bill.ptype || '';
+  const ptype = ptypeClass(bill.ptype);
   let html = '<div class="meta">Date: ' + escapeHtml(bill.date || '-') + ' | Type: <span class="badge ' + ptype + '">' + escapeHtml(ptype) + '</span></div>';
   (bill.items || []).forEach(it => {
     html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) + '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
@@ -831,7 +1077,9 @@ function removePayment(idx) {
   if (!confirm('Delete this payment?')) return;
   const bill = getBill();
   if (!bill || !bill.payments[idx]) return;
-  bill.payments.splice(idx, 1); saveToStorage(); renderDetail();
+  const removed = bill.payments.splice(idx, 1)[0];
+  if (!saveToStorage()) { bill.payments.splice(idx, 0, removed); return; }  // save fail → wapas lao
+  renderDetail();
 }
 function addPayment() {
   const bill = getBill(); if (!bill) return;
@@ -844,15 +1092,23 @@ function addPayment() {
   if (amount > pending) { if (!confirm('Amount exceeds pending. Continue?')) return; finalAmount = pending; }
   const date = prompt('Payment date (YYYY-MM-DD):', today());
   if (date === null) return;
-  bill.payments.push({ amount: finalAmount, date: validDate(date) });
-  if (!saveToStorage()) return;
+  if (!isValidDateStr(String(date).trim())) { alert('Date galat hai. YYYY-MM-DD likho (misal: 2026-09-26).'); return; }
+  bill.payments.push({ amount: finalAmount, date: String(date).trim() });
+  if (!saveToStorage()) { bill.payments.pop(); return; }   // save fail → payment wapas hata do (memory = disk)
   renderDetail();
 }
 function deleteBill() {
-  if (!confirm('Delete this bill permanently?')) return;
   const idx = bills.findIndex(b => b.id === currentBillId);
   if (idx < 0) return;
-  bills.splice(idx, 1); currentBillId = null; saveToStorage(); showList();
+  const removed = bills[idx];
+  let msg = 'Delete this bill permanently?';
+  if ((removed.payments || []).length) msg += '\n\n⚠ Is bill ke ' + removed.payments.length + ' payment(s) bhi delete honge (pending wapas badh jayega).';
+  if ((removed.photos || []).length) msg += '\nIs bill ki ' + removed.photos.length + ' photo(b) bhi Storage se delete hongi.';
+  if (!confirm(msg)) return;
+  bills.splice(idx, 1); currentBillId = null;
+  if (!saveToStorage()) { bills.splice(idx, 0, removed); return; }  // save fail → delete wapas cancel
+  (removed.photos || []).forEach(deleteRemotePhoto);   // bill gaya to Storage ki files bhi
+  showList();
 }
 
 /* ============ WHATSAPP (CUSTOMER) ============ */
@@ -888,22 +1144,46 @@ function supBillTotal(b) {
   return (b.products || []).reduce((s, p) => s + productTotal(p), 0);
 }
 function supPaid(b) { return (b.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0); }
+
+// Supplier ka naam type karte waqt alag-alag ho sakta hai ("Ram" vs "ram"). Exact-match
+// par grouping karne se uska khata do hisso me toot jata tha — dues galat dikhte the.
+// Isliye grouping hamesha case-insensitive key par hoti hai; display naam waisa hi rehta hai.
+function supKey(name) { return String(name || '').trim().toLowerCase(); }
+function findOpeningKey(name) {
+  const k = supKey(name);
+  if (!k) return '';
+  if (Object.prototype.hasOwnProperty.call(supplierOpenings, k)) return k;
+  return Object.keys(supplierOpenings).find(x => x.toLowerCase() === k) || '';
+}
+// Pehle se maujood supplier ka wahi spelling wapas do — naye bill usi me judenge
+function supplierDisplayName(name) {
+  const k = supKey(name);
+  if (!k) return '';
+  const existing = supBills.find(b => supKey(b.name) === k);
+  if (existing) return existing.name;
+  const okey = findOpeningKey(name);
+  if (okey) return okey;
+  return String(name).trim();
+}
 function getOpeningFor(name) {
-  if (!name) return 0;
-  return Number(supplierOpenings[name] || 0);
+  const key = findOpeningKey(name);
+  return key ? Number(supplierOpenings[key] || 0) : 0;
 }
 function setOpeningFor(name, amount) {
-  if (!name) return;
-  if (amount > 0) supplierOpenings[name] = amount;
-  else delete supplierOpenings[name];
+  const display = supplierDisplayName(name);
+  if (!display) return;
+  const key = findOpeningKey(name) || display;
+  if (amount > 0) supplierOpenings[key] = amount;
+  else delete supplierOpenings[key];
   saveOpenings();
 }
 // Supplier-level total dues (opening + all their bills - all their payments)
 function supplierTotalDues(name) {
+  const k = supKey(name);
   const opening = getOpeningFor(name);
   let total = opening, paid = 0;
   supBills.forEach(b => {
-    if ((b.name || '') === name) {
+    if (supKey(b.name) === k) {
       total += supBillTotal(b);
       paid += supPaid(b);
     }
@@ -955,20 +1235,40 @@ function renderSupplierList() {
   list.innerHTML = '';
   let shownCount = 0;
 
+  // Har supplier ka stats ek hi baar nikalo (pehle har card par O(n) tha → O(n^2))
+  // Key case-insensitive — "Ram" aur "ram" ka dues ek hi jagah jama ho
+  const statsByName = new Map();
+  function statsFor(name) {
+    const key = supKey(name);
+    let s = statsByName.get(key);
+    if (!s) { s = { opening: getOpeningFor(name), billsTotal: 0, paid: 0 }; statsByName.set(key, s); }
+    return s;
+  }
+  supBills.forEach(b => {
+    const s = statsFor(b.name || '');
+    s.billsTotal += supBillTotal(b);
+    s.paid += supPaid(b);
+  });
+  Object.keys(supplierOpenings).forEach(n => statsFor(n)); // sirf opening wale suppliers bhi count ho
+  function duesOf(name) {
+    const s = statsFor(name);
+    const total = s.opening + s.billsTotal;
+    return { total, paid: s.paid, due: total - s.paid, opening: s.opening };
+  }
+
   supBills.forEach((b) => {
     if (!inDateRange(b.date, filter, from, to)) return;
-    const paid = supPaid(b);
-    const thisTotal = supBillTotal(b);
-    const thisDue = thisTotal - paid;
-    // Supplier-level total due (not just this bill)
-    const supStats = supplierTotalDues(b.name || '');
-    shownCount++;
 
     const nameMatch = String(b.name || '').toLowerCase().includes(q);
     const dateMatch = String(b.date || '').toLowerCase().includes(q);
     const orderMatch = String(b.orderNo || '').toLowerCase().includes(q);
     const delMatch = String(b.deliveryDate || '').toLowerCase().includes(q);
     if (q && !nameMatch && !dateMatch && !orderMatch && !delMatch) return;
+
+    shownCount++;
+    const thisTotal = supBillTotal(b);
+    // Supplier-level total due (sirf is bill ka nahi)
+    const supStats = duesOf(b.name || '');
 
     // Determine badge for this bill
     let badgeClass = '', badgeText = '';
@@ -986,21 +1286,22 @@ function renderSupplierList() {
         (b.orderNo ? ' | Order: ' + escapeHtml(b.orderNo) : '') +
         (b.deliveryDate ? ' | Del: ' + escapeHtml(b.deliveryDate) : '') + '</div>' +
       '<div class="row"><span>Bill Total: Rs. ' + formatMoney(thisTotal) + '</span>' +
-      '<span class="badge ' + (b.ptype || 'credit') + '">' + escapeHtml(b.ptype || 'credit') + '</span></div>' +
+      ptypeBadge(b.ptype, 'credit') + '</div>' +
       '<div class="row"><span>Products: ' + (b.products || []).length + '</span></div>' +
       '<div class="row"><span class="' + (supStats.due > 0 ? 'pending' : 'paid') + '">' +
         'Total Dues: Rs. ' + formatMoney(Math.max(supStats.due, 0)) + '</span></div>';
     list.appendChild(card);
   });
 
-  // Compute total dues across all suppliers (regardless of filter)
-  const names = new Set();
-  supBills.forEach(b => names.add(b.name));
-  Object.keys(supplierOpenings).forEach(n => names.add(n));
-  let grandDue = 0;
-  names.forEach(n => { grandDue += Math.max(supplierTotalDues(n).due, 0); });
+  // Total dues + supplier count (filter se independent)
+  let grandDue = 0, supplierCount = 0;
+  statsByName.forEach((s, n) => {
+    if (!n) return;
+    supplierCount++;
+    grandDue += Math.max(s.opening + s.billsTotal - s.paid, 0);
+  });
 
-  document.getElementById('supCount').textContent = supBills.length;
+  document.getElementById('supCount').textContent = supplierCount;
   document.getElementById('totalDue').textContent = formatMoney(grandDue);
 
   const summary = document.getElementById('filterSummary');
@@ -1016,8 +1317,10 @@ function openOpeningsManager() {
 }
 function renderOpenings() {
   const list = document.getElementById('openingsList');
-  const names = new Set(Object.keys(supplierOpenings));
-  supBills.forEach(b => { if (b.name) names.add(b.name); });
+  // supKey par group: "Ram" aur "ram" ek hi card par aaye
+  const names = new Map();
+  Object.keys(supplierOpenings).forEach(n => names.set(supKey(n), n));
+  supBills.forEach(b => { const k = supKey(b.name); if (k && !names.has(k)) names.set(k, b.name); });
   list.innerHTML = '';
   if (!names.size) {
     list.innerHTML = '<div class="card" style="cursor:default">Koi supplier nahi. Pehle bill banao ya neeche button se opening add karo.</div>';
@@ -1035,8 +1338,15 @@ function renderOpenings() {
       '<div class="row"><span>Bills Total:</span><span>Rs. ' + formatMoney(stats.total - stats.opening) + '</span></div>' +
       '<div class="row"><span>Paid:</span><span>Rs. ' + formatMoney(stats.paid) + '</span></div>' +
       '<div class="row"><span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Dues:</span>' +
-      '<span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(stats.due, 0)) + '</span></div>' +
-      '<button class="btn small" style="margin-top:8px" onclick="editOpening(\'' + escapeHtml(name).replace(/'/g,"\\'") + '\')">✏️ Set / Edit Opening</button>';
+      '<span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(stats.due, 0)) + '</span></div>';
+    // Button DOM se banao (string-built onclick me apostrophe/quote wale naam par toot jata tha)
+    const btn = document.createElement('button');
+    btn.className = 'btn small';
+    btn.type = 'button';
+    btn.style.marginTop = '8px';
+    btn.textContent = '✏️ Set / Edit Opening';
+    btn.addEventListener('click', () => editOpening(name));
+    card.appendChild(btn);
     list.appendChild(card);
   });
 }
@@ -1077,14 +1387,14 @@ function addProductRow(product = null) {
     '<input type="text" class="p-name" placeholder="Product name" value="' + escapeHtml(p.name) + '">' +
 
     '<div class="grid2" style="margin-top:6px">' +
-      '<div><label>Qty (Cartons)</label><input type="number" min="0" step="any" class="p-qc" value="' + (p.qtyCartons || '') + '" oninput="recalcProducts()"></div>' +
-      '<div><label>Rate per Carton</label><input type="number" min="0" step="any" class="p-rc" value="' + (p.rateCartons || '') + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Qty (Cartons)</label><input type="number" min="0" step="any" class="p-qc" value="' + numVal(p.qtyCartons) + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Rate per Carton</label><input type="number" min="0" step="any" class="p-rc" value="' + numVal(p.rateCartons) + '" oninput="recalcProducts()"></div>' +
     '</div>' +
 
     '<div class="grid3" style="margin-top:6px">' +
-      '<div><label>Qty (Units)</label><input type="number" min="0" step="any" class="p-qu" value="' + (p.qtyUnits || '') + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Qty (Units)</label><input type="number" min="0" step="any" class="p-qu" value="' + numVal(p.qtyUnits) + '" oninput="recalcProducts()"></div>' +
       '<div><label>Unit Type</label><input list="unitTypes" class="p-ut" placeholder="kg/g/L" value="' + escapeHtml(p.unitType || '') + '"></div>' +
-      '<div><label>Rate per Unit</label><input type="number" min="0" step="any" class="p-ru" value="' + (p.rateUnits || '') + '" oninput="recalcProducts()"></div>' +
+      '<div><label>Rate per Unit</label><input type="number" min="0" step="any" class="p-ru" value="' + numVal(p.rateUnits) + '" oninput="recalcProducts()"></div>' +
     '</div>' +
 
     '<div style="margin-top:6px;font-size:12px;color:#666">Product Total: Rs. <span class="p-total">0</span></div>';
@@ -1107,8 +1417,11 @@ function updateProductNumbers() {
   });
 }
 
+// Returns { products, incomplete } — incomplete = aise rows jinme kuch data hai par
+// naam ya qty/rate adhoora hai. Aise rows ko chup-chaap drop nahi kiya jaata (data loss hota tha).
 function getProductsFromForm() {
   const products = [];
+  let incomplete = 0;
   document.querySelectorAll('#productsBox .product-card').forEach(card => {
     const p = {
       name: (card.querySelector('.p-name').value || '').trim(),
@@ -1118,9 +1431,13 @@ function getProductsFromForm() {
       unitType: (card.querySelector('.p-ut').value || '').trim(),
       rateUnits: toNumber(card.querySelector('.p-ru').value)
     };
-    if (p.name && productTotal(p) > 0) products.push(p);
+    const hasQty = p.qtyCartons > 0 || p.qtyUnits > 0;
+    const hasAny = !!p.name || hasQty || p.rateCartons > 0 || p.rateUnits > 0 || !!p.unitType;
+    // Valid = naam + qty maujood (rate 0 bhi chalta hai — muft/free maal)
+    if (p.name && hasQty) products.push(p);
+    else if (hasAny) incomplete++;
   });
-  return products;
+  return { products, incomplete };
 }
 
 function recalcProducts() {
@@ -1166,7 +1483,7 @@ function editOpeningForCurrent() {
 }
 
 function newSupBill() {
-  editingSupId = null; supExistingPaid = 0; currentSupOpening = 0;
+  editingSupId = null; supExistingPaid = 0; currentSupOpening = 0; pendingPhotoDeletes = [];
   document.getElementById('t-supformtitle').textContent = 'New Supplier Bill';
   document.getElementById('s-name').value = '';
   document.getElementById('s-date').value = today();
@@ -1192,6 +1509,7 @@ function editSupBill() {
   editingSupId = b.id;
   supExistingPaid = supPaid(b);
   currentSupOpening = getOpeningFor(b.name || '');
+  pendingPhotoDeletes = [];   // naya form khula → purane queued deletes idhar lagu nahi honge
   document.getElementById('t-supformtitle').textContent = 'Edit Supplier Bill';
   document.getElementById('s-name').value = b.name || '';
   document.getElementById('s-date').value = b.date || today();
@@ -1242,6 +1560,36 @@ function supCalc() {
   document.getElementById('s-pending').textContent = formatMoney(remaining);
 }
 
+// Camera photos aksar 3-8 MB ki hoti hain → slow upload / 30 sec timeout.
+// Isliye upload se pehle max 1600px tak resize karke JPEG bana dete hain.
+function compressImage(dataUrl, maxDim, quality) {
+  maxDim = maxDim || 1600;
+  quality = quality || 0.8;
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          if (!w || !h) { resolve(dataUrl); return; }
+          const scale = Math.min(1, maxDim / Math.max(w, h));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(w * scale));
+          canvas.height = Math.max(1, Math.round(h * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(dataUrl); return; }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const out = canvas.toDataURL('image/jpeg', quality);
+          resolve((out && out.length < dataUrl.length) ? out : dataUrl);
+        } catch (e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch (e) { resolve(dataUrl); }
+  });
+}
+
 async function uploadPhoto(dataUrl) {
   if (!fbStorage) {
     throw new Error('Storage initialize nahi hua');
@@ -1249,52 +1597,63 @@ async function uploadPhoto(dataUrl) {
   if (!fbAuth || !fbAuth.currentUser) {
     throw new Error('Login nahi hai');
   }
-  const uid = fbAuth.currentUser.uid;
-  const ref = fbStorage.ref('photos/' + uid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
+  const ownerUid = fbAuth.currentUser.uid;   // uid() function ka shadow na bane
+  const ref = fbStorage.ref('photos/' + ownerUid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
+
+  const payload = await compressImage(dataUrl);
 
   // Upload with 30 sec timeout
-  const uploadTask = ref.putString(dataUrl, 'data_url');
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Upload timeout (30 second)')), 30000)
-  );
+  const uploadTask = ref.putString(payload, 'data_url');
+  let timer = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      // Timeout par upload ko band karo warna background me chalta rahega
+      try { if (uploadTask && typeof uploadTask.cancel === 'function') uploadTask.cancel(); } catch (e) {}
+      reject(new Error('Upload timeout (30 second)'));
+    }, 30000);
+  });
 
-  await Promise.race([uploadTask, timeoutPromise]);
-  return await ref.getDownloadURL();
+  try {
+    await Promise.race([uploadTask, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);   // warna baad me unhandled rejection aati hai
+  }
+  // getDownloadURL bhi atak sakta hai — wahan koi timeout nahi tha
+  return await withTimeout(ref.getDownloadURL(), 30000, 'URL fetch timeout (30 second)');
+}
+
+// Kisi bhi promise par simple timeout lagao
+function withTimeout(promise, ms, msg) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(msg)), ms); });
+  return Promise.race([promise, timeout]).finally(() => { clearTimeout(timer); });
+}
+
+// Photo (ya uska Storage file) delete — best effort.
+// Rules allow na karein ya file pehle se gayab ho, to sirf warn karo — app crash nahi hona chahiye.
+function deleteRemotePhoto(url) {
+  try {
+    if (!fbStorage || typeof url !== 'string' || !url.startsWith('http')) return;
+    const task = fbStorage.refFromURL(url).delete();
+    if (task && typeof task.catch === 'function') task.catch(e => console.warn('Photo delete skipped:', e && e.message));
+  } catch (e) { console.warn('Photo delete skipped:', e && e.message); }
 }
 
 
 async function saveSupBill() {
-  const name = document.getElementById('s-name').value.trim();
-  if (!name) { alert('Supplier name likho.'); return; }
-  const products = getProductsFromForm();
+  const rawName = document.getElementById('s-name').value.trim();
+  if (!rawName) { alert('Supplier name likho.'); return; }
+  // Naam ka pehle se maujood spelling use karo, warna "Ram" aur "ram" ke dues alag ho jayenge
+  const name = supplierDisplayName(rawName) || rawName;
+  const read = getProductsFromForm();
+  const products = read.products;
+  if (read.incomplete) {
+    alert(read.incomplete + ' product row adhoora hai (naam aur Qty dono zaroori hain).\nPehle use theek karo ya ✕ Remove se hata do.');
+    return;
+  }
   if (!products.length) { alert('Kam se kam 1 product add karo.'); return; }
 
-  // Collect bill-level photos
-  const billPhotosRaw = [];
-  document.querySelectorAll('#supplierPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
-  const hasNewPhotos = billPhotosRaw.some(isDataUrl);
-  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
-
-  const billPhotos = [];
-  if (hasNewPhotos && !isLoggedIn) {
-    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
-  } else if (hasNewPhotos && isLoggedIn) {
-    showLoading('Photos upload ho rahi hain...');
-    try {
-      for (const p of billPhotosRaw) {
-        if (isDataUrl(p)) {
-          const url = await uploadPhoto(p);
-          if (url) billPhotos.push(url);
-          else console.warn('1 photo upload fail hui, skip kar di');
-        } else {
-          billPhotos.push(p);
-        }
-      }
-    } finally { hideLoading(); }
-  } else {
-    billPhotos.push(...billPhotosRaw);
-  }
-
+  // Payment validation pehle — cancel hone par photo upload na ho
   let paid = toNumber(document.getElementById('s-paid').value);
   const thisBill = products.reduce((s, p) => s + productTotal(p), 0);
   const grandTotal = thisBill + currentSupOpening;
@@ -1304,12 +1663,17 @@ async function saveSupBill() {
     paid = Math.max(grandTotal - supExistingPaid, 0);
   }
 
+  // Bill photos (upload)
+  const photoRes = await collectPhotos('#supplierPhotoRow');
+  if (!photoRes) return;
+  const billPhotos = photoRes.photos;
+
   const billData = {
     name,
     date: validDate(document.getElementById('s-date').value),
     deliveryDate: document.getElementById('s-delivery').value || '',
     orderNo: document.getElementById('s-orderno').value.trim(),
-    ptype: document.getElementById('s-ptype').value || 'credit',
+    ptype: ptypeClass(document.getElementById('s-ptype').value) || 'credit',
     products,
     payments: [],
     photos: billPhotos
@@ -1317,19 +1681,22 @@ async function saveSupBill() {
   if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('s-paiddate').value) });
 
   if (wasEditing) {
+    billData.id = editingSupId;
     const idx = supBills.findIndex(b => b.id === editingSupId);
-    if (idx >= 0) {
-      billData.id = editingSupId;
-      billData.payments = (supBills[idx].payments || []).concat(billData.payments);
-      supBills[idx] = billData;
-    }
+    if (idx >= 0) billData.payments = (supBills[idx].payments || []).concat(billData.payments);
+    if (idx >= 0) supBills[idx] = billData; else supBills.push(billData);
   } else {
     billData.id = uid();
     supBills.push(billData);
   }
   editingSupId = null; supExistingPaid = 0; currentSupOpening = 0;
 
-  if (!supSave()) return;
+  if (!supSave()) {
+    (photoRes.uploaded || []).forEach(deleteRemotePhoto);
+    return;
+  }
+  flushPhotoDeletes();
+  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gaya.');
   if (wasEditing) { currentSupId = billData.id; renderSupDetail(); showScreen('supDetailScreen'); }
   else showSupplierList();
 }
@@ -1340,7 +1707,6 @@ function renderSupDetail() {
   document.getElementById('sd-name').textContent = b.name || '-';
 
   const thisBill = supBillTotal(b);
-  const paid = supPaid(b);
   const stats = supplierTotalDues(b.name || '');
 
   const badge = document.getElementById('sd-badge');
@@ -1353,7 +1719,7 @@ function renderSupDetail() {
   html += '<div class="meta">Bill: ' + escapeHtml(b.date || '-') +
     (b.deliveryDate ? ' | Delivery: ' + escapeHtml(b.deliveryDate) : '') +
     (b.orderNo ? ' | Order: ' + escapeHtml(b.orderNo) : '') +
-    ' | <span class="badge ' + (b.ptype || 'credit') + '">' + escapeHtml(b.ptype || 'credit') + '</span></div>';
+    ' | ' + ptypeBadge(b.ptype, 'credit') + '</div>';
 
   html += '<h3 style="margin-top:10px">Products</h3>';
   (b.products || []).forEach(p => {
@@ -1386,7 +1752,8 @@ function renderSupDetail() {
 
   html += '<div style="background:#fff4e5;padding:10px;border-radius:8px;margin-top:10px">';
   html += '<div class="row"><span>Opening Balance</span><span>Rs. ' + formatMoney(stats.opening) + '</span></div>';
-  html += '<div class="row"><span>All Bills Total</span><span>Rs. ' + formatMoney(stats.total) + '</span></div>';
+  html += '<div class="row"><span>All Bills Total</span><span>Rs. ' + formatMoney(stats.total - stats.opening) + '</span></div>';
+  html += '<div class="row"><span>Opening + Bills</span><span>Rs. ' + formatMoney(stats.total) + '</span></div>';
   html += '<div class="row"><span>Total Paid</span><span>Rs. ' + formatMoney(stats.paid) + '</span></div>';
   html += '<div class="row" style="font-weight:bold"><span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Total Dues (Supplier)</span>' +
     '<span class="' + (stats.due > 0 ? 'pending' : 'paid') + '">Rs. ' + formatMoney(Math.max(stats.due, 0)) + '</span></div>';
@@ -1398,7 +1765,9 @@ function removeSupPayment(idx) {
   if (!confirm('Delete this payment?')) return;
   const b = getSup();
   if (!b || !b.payments[idx]) return;
-  b.payments.splice(idx, 1); supSave(); renderSupDetail();
+  const removed = b.payments.splice(idx, 1)[0];
+  if (!supSave()) { b.payments.splice(idx, 0, removed); return; }  // save fail → wapas lao
+  renderSupDetail();
 }
 
 function addSupPayment() {
@@ -1412,21 +1781,30 @@ function addSupPayment() {
   if (amount > stats.due) { if (!confirm('Amount exceeds dues. Continue?')) return; finalAmount = stats.due; }
   const date = prompt('Payment date (YYYY-MM-DD):', today());
   if (date === null) return;
-  b.payments.push({ amount: finalAmount, date: validDate(date) });
-  if (!supSave()) return;
+  if (!isValidDateStr(String(date).trim())) { alert('Date galat hai. YYYY-MM-DD likho (misal: 2026-09-26).'); return; }
+  b.payments.push({ amount: finalAmount, date: String(date).trim() });
+  if (!supSave()) { b.payments.pop(); return; }   // save fail → payment wapas hata do (memory = disk)
   renderSupDetail();
 }
 
 function deleteSupBill() {
-  if (!confirm('Delete this bill permanently?')) return;
   const idx = supBills.findIndex(b => b.id === currentSupId);
   if (idx < 0) return;
-  supBills.splice(idx, 1); currentSupId = null; supSave(); showSupplierList();
+  const removed = supBills[idx];
+  let msg = 'Delete this bill permanently?';
+  if ((removed.payments || []).length) {
+    msg += '\n\n⚠ Is bill ke ' + removed.payments.length + ' payment(s) supplier ke TOTAL DUES me count hote hain — delete karne par wo bhi hat jayengi (dues badh jayengi).';
+  }
+  if ((removed.photos || []).length) msg += '\nIs bill ki ' + removed.photos.length + ' photo(b) bhi Storage se delete hongi.';
+  if (!confirm(msg)) return;
+  supBills.splice(idx, 1); currentSupId = null;
+  if (!supSave()) { supBills.splice(idx, 0, removed); return; }   // save fail → delete wapas cancel
+  (removed.photos || []).forEach(deleteRemotePhoto);
+  showSupplierList();
 }
 
 function shareSupWhatsApp() {
   const b = getSup(); if (!b) return;
-  const paid = supPaid(b);
   const thisBill = supBillTotal(b);
   const stats = supplierTotalDues(b.name || '');
   let msg = '*Rajpoot General Store*\nSupplier: ' + (b.name || '-') + '\nDate: ' + (b.date || '-') + '\n';
@@ -1470,6 +1848,7 @@ function attachBillPhoto(type, mode) {
 function handlePhotoSelect(ev) {
   const f = ev.target.files[0];
   if (!f) return;
+  if (f.type && !f.type.startsWith('image/')) { alert('Sirf image file select karo.'); return; }
   const row = currentBillPhotoRow;
   currentBillPhotoRow = null;
   if (!row) return;
@@ -1479,6 +1858,7 @@ function handlePhotoSelect(ev) {
     if (!row || row.children.length >= 5) return;
     addPhotoThumb(row, dataUrl, row.children.length);
   };
+  reader.onerror = () => alert('Photo padhne me dikkat aayi. Dobara try karo.');
   reader.readAsDataURL(f);
 }
 
@@ -1494,7 +1874,11 @@ function addPhotoThumb(row, src, idx) {
 
 function removePhotoThumb(btn) {
   if (!confirm('Delete this photo?')) return;
-  btn.closest('.photo-thumb').remove();
+  const thumb = btn.closest('.photo-thumb');
+  if (!thumb) return;
+  // Storage file sirf save hone ke baad delete — user ne cancel kar diya to photo wapas chahiye
+  if (thumb.dataset) queuePhotoDelete(thumb.dataset.src);
+  thumb.remove();
 }
 
 function openViewerFromThumb(img) {
@@ -1518,7 +1902,6 @@ function openViewerForCustomerBill(billId, photoIdx) {
 
 /* ============ PHOTO VIEWER ============ */
 let viewerSrcs = [], viewerIndex = 0, viewerScale = 1;
-let viewerStartDist = 0, viewerStartScale = 1;
 
 function openViewer(srcs, idx) {
   viewerSrcs = srcs.slice();
@@ -1535,6 +1918,9 @@ function closeViewer() {
   document.getElementById('photoViewer').classList.add('hidden');
   document.body.style.overflow = '';
   viewerSrcs = [];
+  // Bade (data URL) images ko memory se hata do
+  const img = document.getElementById('viewerImg');
+  if (img) { try { img.removeAttribute('src'); } catch (e) { img.src = ''; } }
 }
 function updateViewer() {
   if (!viewerSrcs.length) { closeViewer(); return; }
@@ -1574,7 +1960,6 @@ function viewerNav(d) {
   // Clamp pan so image doesn't go too far
   function clampPan() {
     if (viewerScale <= 1) { panX = 0; panY = 0; return; }
-    const rect = img.getBoundingClientRect();
     const maxX = (img.clientWidth * (viewerScale - 1)) / 2;
     const maxY = (img.clientHeight * (viewerScale - 1)) / 2;
     panX = Math.max(-maxX, Math.min(maxX, panX));
@@ -1640,6 +2025,7 @@ function viewerNav(d) {
 
   body.addEventListener('mousedown', (e) => {
     mouseDown = true;
+    hasMoved = false;
     mx = e.clientX; my = e.clientY;
     mPanX = panX; mPanY = panY;
     img.style.cursor = viewerScale > 1 ? 'grabbing' : 'grab';
@@ -1649,6 +2035,8 @@ function viewerNav(d) {
     if (!mouseDown) return;
     const dx = e.clientX - mx;
     const dy = e.clientY - my;
+    // Drag ke baad click double-tap na samjhe
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
     panX = mPanX + dx;
     panY = mPanY + dy;
     clampPan();
@@ -1673,7 +2061,10 @@ function viewerNav(d) {
 
   // ---- DOUBLE TAP / DOUBLE CLICK ----
   body.addEventListener('click', (e) => {
-    if (hasMoved) return;
+    // Prev/Next buttons par click zoom toggle na kare
+    if (e.target && e.target.closest && e.target.closest('button')) return;
+    // Drag/pan ke baad aaya click double-tap count na ho
+    if (hasMoved) { hasMoved = false; return; }
     const now = Date.now();
     if (now - lastTap < 300) {
       if (viewerScale > 1) {
@@ -1681,8 +2072,11 @@ function viewerNav(d) {
         resetPan();
       } else {
         viewerScale = 2.5;
+        clampPan();
       }
       applyTransform();
+      lastTap = 0;   // lagatar 3 click par zoom bar-bar flip na ho
+      return;
     }
     lastTap = now;
   });
@@ -1700,27 +2094,43 @@ function openSettings() { updateSettingsUI(); showScreen('settingsScreen'); }
 function updateSettingsUI() {
   document.getElementById('pinStatus').innerHTML = hasPIN() ? '<span class="status-dot on"></span>Set' : '<span class="status-dot off"></span>Not set';
   document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred() ? '<span class="status-dot on"></span>Enabled' : '<span class="status-dot off"></span>Off';
+  // onclick yahan override NAHI karte — HTML ka handleCloud() hi chalta hai
   if (firebaseReady && fbAuth) {
     const u = fbAuth.currentUser;
     document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
     document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
-    document.getElementById('cloudBtn').onclick = u ? signOutCloud : () => showScreen('loginScreen');
     document.getElementById('syncBtn').classList.toggle('hidden', !u);
   } else {
     document.getElementById('cloudStatus').textContent = 'Not configured';
     document.getElementById('cloudBtn').textContent = 'Setup Required';
-    document.getElementById('cloudBtn').onclick = () => alert('Firebase config missing.');
   }
   const ls = localStorage.getItem('rgs_last_sync');
   document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
+  // Auto-sync chup-chaap fail hoti rahi — user ko pata hi nahi chalta tha
+  const errEl = document.getElementById('syncErr');
+  if (errEl) {
+    const err = localStorage.getItem('rgs_sync_err') || '';
+    errEl.textContent = err || 'OK';
+    errEl.style.color = err ? '#dc3545' : '#28a745';
+  }
+}
+function setSyncError(msg) {
+  try {
+    if (msg) localStorage.setItem('rgs_sync_err', String(msg));
+    else localStorage.removeItem('rgs_sync_err');
+  } catch (e) { /* storage blocked */ }
 }
 async function changePin() {
   if (hasPIN()) {
     const old = prompt('Enter current PIN:'); if (old === null) return;
     if (await hashPin(old) !== localStorage.getItem(PIN_KEY)) { alert('Wrong PIN.'); return; }
   }
-  const np1 = prompt('New 4-digit PIN:'); if (!np1 || np1.length !== 4) { alert('PIN must be 4 digits.'); return; }
-  const np2 = prompt('Confirm new PIN:'); if (np1 !== np2) { alert('PINs do not match.'); return; }
+  const np1 = prompt('New 4-digit PIN:');
+  if (np1 === null) return;
+  if (!/^\d{4}$/.test(np1)) { alert('PIN must be exactly 4 digits.'); return; }
+  const np2 = prompt('Confirm new PIN:');
+  if (np2 === null) return;
+  if (np1 !== np2) { alert('PINs do not match.'); return; }
   localStorage.setItem(PIN_KEY, await hashPin(np1)); alert('✅ PIN updated.'); updateSettingsUI();
 }
 async function toggleBiometric() {
@@ -1731,12 +2141,30 @@ async function toggleBiometric() {
 }
 
 /* ============ CLOUD ============ */
+// Login/signup ke baad usi screen par wapas jahan se aaye the
+function afterLogin() {
+  const target = loginReturnTo;
+  loginReturnTo = 'listScreen';
+  if (target === 'settingsScreen') openSettings(); else showList();
+}
+function goBackFromLogin() {
+  document.getElementById('loginPass').value = '';   // password DOM me na rahe
+  afterLogin();
+}
+
 async function doLogin() {
   if (!firebaseReady) { alert('Firebase not configured.'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
   document.getElementById('loginErr').textContent = '';
-  try { await fbAuth.signInWithEmailAndPassword(email, pass); await pullFromCloud(); alert('✅ Signed in!'); showList(); }
+  if (!email || !pass) { document.getElementById('loginErr').textContent = 'Email aur password dono bharein'; return; }
+  try {
+    await fbAuth.signInWithEmailAndPassword(email, pass);
+    document.getElementById('loginPass').value = '';
+    await pullFromCloud();
+    alert('✅ Signed in!');
+    afterLogin();
+  }
   catch (e) { document.getElementById('loginErr').textContent = e.message || 'Login failed'; }
 }
 async function doSignup() {
@@ -1744,8 +2172,26 @@ async function doSignup() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
   document.getElementById('loginErr').textContent = '';
+  if (!email) { document.getElementById('loginErr').textContent = 'Email bharein'; return; }
   if (pass.length < 6) { document.getElementById('loginErr').textContent = 'Password min 6 chars'; return; }
-  try { await fbAuth.createUserWithEmailAndPassword(email, pass); await pushToCloud(); alert('✅ Account created!'); showList(); }
+  try {
+    await fbAuth.createUserWithEmailAndPassword(email, pass);
+    document.getElementById('loginPass').value = '';
+    // Agar is account ka cloud data pehle se hai to local se chupke overwrite na ho jaye
+    let hasCloud = false;
+    try {
+      const doc = await fbDb.collection('stores').doc(fbAuth.currentUser.uid).get();
+      hasCloud = doc.exists;
+    } catch (e) { console.warn('Cloud check failed:', e); }
+    if (hasCloud) {
+      const overwrite = confirm('Is account ka cloud data pehle se maujood hai.\nOK = local data cloud par overwrite kar do\nCancel = cloud data is device par le aao');
+      if (overwrite) await pushToCloud(); else await pullFromCloud();
+    } else {
+      await pushToCloud();
+    }
+    alert('✅ Account created!');
+    afterLogin();
+  }
   catch (e) { document.getElementById('loginErr').textContent = e.message || 'Signup failed'; }
 }
 async function signOutCloud() {
@@ -1755,44 +2201,65 @@ async function signOutCloud() {
 }
 function handleCloud() {
   if (!firebaseReady) { alert('Firebase config missing.'); return; }
-  if (fbAuth.currentUser) signOutCloud(); else showScreen('loginScreen');
+  if (fbAuth.currentUser) { signOutCloud(); return; }
+  loginReturnTo = 'settingsScreen';
+  showScreen('loginScreen');
 }
 async function pushToCloud() {
   if (!firebaseReady || !fbAuth.currentUser) return false;
-  const uid = fbAuth.currentUser.uid;
+  const userUid = fbAuth.currentUser.uid;
   try {
-    await fbDb.collection('stores').doc(uid).set({
+    await fbDb.collection('stores').doc(userUid).set({
       bills, supBills,
       supplierOpenings,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       email: fbAuth.currentUser.email
     });
     localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    setSyncError('');
     return true;
-  } catch (e) { console.warn('Push failed:', e); return false; }
+  } catch (e) {
+    console.warn('Push failed:', e);
+    setSyncError('Backup failed: ' + (e && e.message ? e.message : 'unknown error'));
+    return false;
+  }
 }
 async function pullFromCloud() {
   if (!firebaseReady || !fbAuth.currentUser) return false;
-  const uid = fbAuth.currentUser.uid;
+  const userUid = fbAuth.currentUser.uid;
   try {
-    const doc = await fbDb.collection('stores').doc(uid).get();
-    if (doc.exists) {
-      const d = doc.data();
-      if (Array.isArray(d.bills)) bills = d.bills;
-      if (Array.isArray(d.supBills)) supBills = d.supBills;
-      if (d.supplierOpenings && typeof d.supplierOpenings === 'object') supplierOpenings = d.supplierOpenings;
-      saveToStorage(); supSave(); saveOpenings();
-      localStorage.setItem('rgs_last_sync', new Date().toISOString());
-      return true;
+    const doc = await fbDb.collection('stores').doc(userUid).get();
+    if (!doc.exists) return false;
+    const d = doc.data() || {};
+    const cloudBills = normalizeBills(d.bills);
+    const cloudSup = normalizeSupBills(d.supBills);
+    const cloudOpenings = normalizeOpenings(d.supplierOpenings);
+
+    const localHasData = bills.length > 0 || supBills.length > 0 || Object.keys(supplierOpenings).length > 0;
+    const cloudHasData = cloudBills.length > 0 || cloudSup.length > 0 || Object.keys(cloudOpenings).length > 0;
+    // Bina poochhe local data delete mat karo
+    if (localHasData && cloudHasData) {
+      const take = confirm('Cloud backup aur is device dono me data hai.\nOK = cloud data local par replace kar do\nCancel = local data waisa hi rehne do');
+      if (!take) return false;
     }
+
+    bills = cloudBills; supBills = cloudSup; supplierOpenings = cloudOpenings;
+    saveToStorage(); supSave(); saveOpenings();
+    localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    setSyncError('');
+    return true;
+  } catch (e) {
+    console.warn('Pull failed:', e);
+    setSyncError('Restore failed: ' + (e && e.message ? e.message : 'unknown error'));
     return false;
-  } catch (e) { console.warn('Pull failed:', e); return false; }
+  }
 }
 async function syncNow() {
   if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
   if (!confirm('Sync? This will overwrite cloud data with local data.')) return;
   const ok = await pushToCloud();
-  if (ok) { alert('✅ Synced.'); updateSettingsUI(); } else alert('❌ Sync failed.');
+  if (ok) { alert('✅ Synced.'); updateSettingsUI(); }
+  else alert('❌ Sync failed.\n' + (localStorage.getItem('rgs_sync_err') || ''));
 }
 let syncTimer = null;
 function scheduleAutoSync() {
@@ -1803,12 +2270,18 @@ function scheduleAutoSync() {
 
 /* ============ EXPORT / IMPORT ============ */
 function exportData() {
-  const data = { bills, supBills, supplierOpenings, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'rgs-backup-' + today() + '.json';
-  a.click();
+  const data = { version: APP_VERSION, bills, supBills, supplierOpenings, exportedAt: new Date().toISOString() };
+  try {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = 'rgs-backup-' + today() + '.json';
+    a.style.display = 'none';
+    document.body.appendChild(a);      // kuch browser anchor-less click ignore karte hain
+    a.click();
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} try { a.remove(); } catch (e) {} }, 1000);
+  } catch (e) { alert('Export failed: ' + (e && e.message)); }
 }
 function importData(ev) {
   const f = ev.target.files[0]; if (!f) return;
@@ -1816,20 +2289,26 @@ function importData(ev) {
   r.onload = () => {
     try {
       const d = JSON.parse(r.result);
-      if (!Array.isArray(d.bills) || !Array.isArray(d.supBills)) throw new Error('Invalid');
+      if (!d || typeof d !== 'object' || !Array.isArray(d.bills) || !Array.isArray(d.supBills)) throw new Error('Invalid');
       if (!confirm('Replace all current data with backup?')) return;
-      bills = d.bills; supBills = d.supBills;
-      if (d.supplierOpenings) supplierOpenings = d.supplierOpenings;
+      bills = normalizeBills(d.bills);
+      supBills = normalizeSupBills(d.supBills);
+      supplierOpenings = normalizeOpenings(d.supplierOpenings);
       saveToStorage(); supSave(); saveOpenings();
       alert('✅ Imported.'); showList();
     } catch (e) { alert('Invalid backup file.'); }
   };
+  r.onerror = () => alert('Backup file padhne me dikkat aayi.');
   r.readAsText(f);
   ev.target.value = '';
 }
 
 /* ============ LOADING OVERLAY ============ */
-function showLoading(msg) {
+let loadingAutoTimer = null;
+let loadingCancelled = false;
+
+function showLoading(msg, autoMs) {
+  loadingCancelled = false;
   let el = document.getElementById('loadingOverlay');
   if (!el) {
     el = document.createElement('div');
@@ -1838,23 +2317,22 @@ function showLoading(msg) {
     document.body.appendChild(el);
   }
   el.innerHTML =
-    '<div style="margin-bottom:20px">' + (msg || 'Loading...') + '</div>' +
+    '<div style="margin-bottom:20px">' + escapeHtml(msg || 'Loading...') + '</div>' +
     '<button id="loadingCancelBtn" style="padding:10px 24px;background:#dc3545;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">Cancel</button>';
   el.style.display = 'flex';
   const cancelBtn = document.getElementById('loadingCancelBtn');
-  if (cancelBtn) cancelBtn.onclick = () => hideLoading();
-}
-function hideLoading() {
-  const el = document.getElementById('loadingOverlay');
-  if (el) el.style.display = 'none';
-}
-  // Safety: 40 second baad khud band
+  // Cancel = aage ki photos upload nahi hongi (bill phir bhi save hogi)
+  if (cancelBtn) cancelBtn.onclick = () => { loadingCancelled = true; hideLoading(); };
+  // Safety valve — overlay kabhi atka na rahe. Har photo ka apna 30s timeout hai,
+  // isliye caller photo-count ke hisaab se waqt de sakta hai (pehle fixed 40s tha,
+  // jo 5 photo wale batch ko beech me hi kaat deta tha).
   clearTimeout(loadingAutoTimer);
-  loadingAutoTimer = setTimeout(() => hideLoading(), 40000);
-
+  loadingAutoTimer = setTimeout(() => { loadingCancelled = true; hideLoading(); }, Number(autoMs) > 0 ? Number(autoMs) : 60000);
+}
 
 function hideLoading() {
   clearTimeout(loadingAutoTimer);
+  loadingAutoTimer = null;
   const el = document.getElementById('loadingOverlay');
   if (el) el.style.display = 'none';
 }
@@ -1901,12 +2379,27 @@ window.addEventListener('load', () => {
   } catch(e) {}
 });
 
-window.addEventListener('popstate', (e) => {
-  // Agar photo viewer khula hai to pehle usko band karo
+window.addEventListener('popstate', () => {
+  const keepGuard = () => { try { history.pushState({ appGuard: true }, ''); } catch (err) {} };
+
+  // 1) Agar photo viewer khula hai to pehle usko band karo
   const viewerEl = document.getElementById('photoViewer');
   if (viewerEl && !viewerEl.classList.contains('hidden')) {
     closeViewer();
-    try { history.pushState({ appGuard: true }, ''); } catch(err) {}
+    keepGuard();
+    return;
+  }
+
+  // 2) Login screen se back → wapas Settings
+  if (screenVisible('loginScreen')) {
+    keepGuard();
+    goBackFromLogin();
+    return;
+  }
+
+  // 3) Lock / Setup screen par back app ko band na kare
+  if (screenVisible('lockScreen') || screenVisible('setupScreen')) {
+    keepGuard();
     return;
   }
 
@@ -1925,7 +2418,7 @@ window.addEventListener('popstate', (e) => {
       showScreen('listScreen');
       renderList();
     }
-    try { history.pushState({ appGuard: true }, ''); } catch(err) {}
+    keepGuard();
   }
 });
   
