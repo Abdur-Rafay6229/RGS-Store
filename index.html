@@ -750,23 +750,29 @@ async function saveBill() {
   const billPhotosRaw = [];
   document.querySelectorAll('#customerPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
   const hasNewPhotos = billPhotosRaw.some(isDataUrl);
-  if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
-    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
-  }
-  showLoading('Photos upload ho rahi hain...');
+  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
+
   const billPhotos = [];
-  try {
-    for (const p of billPhotosRaw) {
-      if (isDataUrl(p)) {
-        if (fbStorage && fbAuth && fbAuth.currentUser) {
+  if (hasNewPhotos && !isLoggedIn) {
+    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
+    // Login nahi hai — photos skip, URLs save nahi honge
+  } else if (hasNewPhotos && isLoggedIn) {
+    showLoading('Photos upload ho rahi hain...');
+    try {
+      for (const p of billPhotosRaw) {
+        if (isDataUrl(p)) {
           const url = await uploadPhoto(p);
           if (url) billPhotos.push(url);
+          else console.warn('1 photo upload fail hui, skip kar di');
+        } else {
+          billPhotos.push(p);
         }
-      } else {
-        billPhotos.push(p);
       }
-    }
-  } finally { hideLoading(); }
+    } finally { hideLoading(); }
+  } else {
+    // Koi new photo nahi
+    billPhotos.push(...billPhotosRaw);
+  }
 
   let paid = toNumber(document.getElementById('f-paid').value);
   const total = itemsTotal({ items });
@@ -1237,14 +1243,25 @@ function supCalc() {
 }
 
 async function uploadPhoto(dataUrl) {
-  if (!fbStorage || !fbAuth || !fbAuth.currentUser) return null;
-  try {
-    const uid = fbAuth.currentUser.uid;
-    const ref = fbStorage.ref('photos/' + uid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
-    await ref.putString(dataUrl, 'data_url');
-    return await ref.getDownloadURL();
-  } catch (e) { console.warn('Upload failed:', e); return null; }
+  if (!fbStorage) {
+    throw new Error('Storage initialize nahi hua');
+  }
+  if (!fbAuth || !fbAuth.currentUser) {
+    throw new Error('Login nahi hai');
+  }
+  const uid = fbAuth.currentUser.uid;
+  const ref = fbStorage.ref('photos/' + uid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
+
+  // Upload with 30 sec timeout
+  const uploadTask = ref.putString(dataUrl, 'data_url');
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Upload timeout (30 second)')), 30000)
+  );
+
+  await Promise.race([uploadTask, timeoutPromise]);
+  return await ref.getDownloadURL();
 }
+
 
 async function saveSupBill() {
   const name = document.getElementById('s-name').value.trim();
@@ -1256,23 +1273,27 @@ async function saveSupBill() {
   const billPhotosRaw = [];
   document.querySelectorAll('#supplierPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
   const hasNewPhotos = billPhotosRaw.some(isDataUrl);
-  if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
-    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
-  }
-  showLoading('Photos upload ho rahi hain...');
+  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
+
   const billPhotos = [];
-  try {
-    for (const p of billPhotosRaw) {
-      if (isDataUrl(p)) {
-        if (fbStorage && fbAuth && fbAuth.currentUser) {
+  if (hasNewPhotos && !isLoggedIn) {
+    if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
+  } else if (hasNewPhotos && isLoggedIn) {
+    showLoading('Photos upload ho rahi hain...');
+    try {
+      for (const p of billPhotosRaw) {
+        if (isDataUrl(p)) {
           const url = await uploadPhoto(p);
           if (url) billPhotos.push(url);
+          else console.warn('1 photo upload fail hui, skip kar di');
+        } else {
+          billPhotos.push(p);
         }
-      } else {
-        billPhotos.push(p);
       }
-    }
-  } finally { hideLoading(); }
+    } finally { hideLoading(); }
+  } else {
+    billPhotos.push(...billPhotosRaw);
+  }
 
   let paid = toNumber(document.getElementById('s-paid').value);
   const thisBill = products.reduce((s, p) => s + productTotal(p), 0);
@@ -1813,13 +1834,27 @@ function showLoading(msg) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'loadingOverlay';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99999;font-size:16px;';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-size:16px;text-align:center;padding:20px;';
     document.body.appendChild(el);
   }
-  el.textContent = msg || 'Loading...';
+  el.innerHTML =
+    '<div style="margin-bottom:20px">' + (msg || 'Loading...') + '</div>' +
+    '<button id="loadingCancelBtn" style="padding:10px 24px;background:#dc3545;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">Cancel</button>';
   el.style.display = 'flex';
+  const cancelBtn = document.getElementById('loadingCancelBtn');
+  if (cancelBtn) cancelBtn.onclick = () => hideLoading();
 }
 function hideLoading() {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.style.display = 'none';
+}
+  // Safety: 40 second baad khud band
+  clearTimeout(loadingAutoTimer);
+  loadingAutoTimer = setTimeout(() => hideLoading(), 40000);
+
+
+function hideLoading() {
+  clearTimeout(loadingAutoTimer);
   const el = document.getElementById('loadingOverlay');
   if (el) el.style.display = 'none';
 }
