@@ -194,6 +194,14 @@
     <option value="online">Online</option>
     <option value="credit">Credit</option>
   </select>
+
+  <label>Bill Photos (optional)</label>
+  <div class="photo-btns">
+    <button type="button" class="btn small green" onclick="attachBillPhoto('customer','camera')">📷 Camera</button>
+    <button type="button" class="btn small" onclick="attachBillPhoto('customer','gallery')">🖼 Gallery</button>
+  </div>
+  <div class="photo-row" id="customerPhotoRow"></div>
+
   <label id="t-items">Items (Name | Qty | Rate)</label>
   <div id="itemsBox"></div>
   <button class="btn small" onclick="addItemRow()">+ <span id="t-additem">Add Item</span></button>
@@ -273,6 +281,13 @@
     Previous Dues (Opening Balance): Rs. <span id="s-opening-val">0</span>
     <button class="btn small" style="margin-top:6px;background:#f9ab00" onclick="editOpeningForCurrent()">✏️ Change</button>
   </div>
+
+    <label style="margin-top:12px;font-weight:bold">Bill Photos (optional)</label>
+  <div class="photo-btns">
+    <button type="button" class="btn small green" onclick="attachBillPhoto('supplier','camera')">📷 Camera</button>
+    <button type="button" class="btn small" onclick="attachBillPhoto('supplier','gallery')">🖼 Gallery</button>
+  </div>
+  <div class="photo-row" id="supplierPhotoRow"></div>
 
   <label style="margin-top:12px;font-weight:bold">Products</label>
   <div id="productsBox"></div>
@@ -564,22 +579,11 @@ function loadSupBills() {
     if (!b || typeof b !== 'object') return null;
     if (!b.id) b.id = uid();
     if (!Array.isArray(b.payments)) b.payments = [];
-    if (!Array.isArray(b.products)) {
-      b.products = [];
-      if (b.amount) {
-        b.products.push({
-          name: b.desc || 'Bill',
-          qtyCartons: 0, rateCartons: 0,
-          qtyUnits: 0, rateUnits: Number(b.amount) || 0,
-          unitType: '', photos: []
-        });
-      }
-    }
+    if (!Array.isArray(b.products)) b.products = [];
+    if (!Array.isArray(b.photos)) b.photos = [];
     if (typeof b.ptype !== 'string') b.ptype = 'credit';
     if (typeof b.deliveryDate !== 'string') b.deliveryDate = '';
     if (typeof b.orderNo !== 'string') b.orderNo = '';
-    // Ensure photos array on each product
-    b.products.forEach(p => { if (!Array.isArray(p.photos)) p.photos = []; });
     return b;
   }).filter(Boolean);
 }
@@ -669,6 +673,7 @@ function newBill() {
   document.getElementById('f-paiddate').value = today();
   document.getElementById('f-already').classList.add('hidden');
   document.getElementById('itemsBox').innerHTML = '';
+  document.getElementById('customerPhotoRow').innerHTML = '';
   addItemRow(); calcTotal();
   showScreen('formScreen');
 }
@@ -687,10 +692,15 @@ function editBill() {
   const box = document.getElementById('itemsBox'); box.innerHTML = '';
   (bill.items || []).forEach(it => addItemRow(it));
   if (!box.children.length) addItemRow();
+
+  const custPhotoRow = document.getElementById('customerPhotoRow');
+  custPhotoRow.innerHTML = '';
+  (bill.photos || []).forEach(src => addPhotoThumb(custPhotoRow, src, custPhotoRow.children.length));
+
   calcTotal(); showScreen('formScreen');
 }
 function addItemRow(item = null) {
-  const it = item || { name: '', qty: '', rate: '', photos: [] };
+  const it = item || { name: '', qty: '', rate: '' };
   const box = document.getElementById('itemsBox');
   const card = document.createElement('div');
   card.className = 'product-card';
@@ -701,15 +711,8 @@ function addItemRow(item = null) {
       '<input type="text" class="i-name" placeholder="Item" value="' + escapeHtml(it.name) + '" oninput="calcTotal()">' +
       '<input type="number" class="i-qty" min="0" step="any" placeholder="Qty" value="' + escapeHtml(it.qty) + '" oninput="calcTotal()">' +
       '<input type="number" class="i-rate" min="0" step="any" placeholder="Rate" value="' + escapeHtml(it.rate) + '" oninput="calcTotal()">' +
-    '</div>' +
-    '<div class="photo-btns" style="margin-top:6px">' +
-      '<button type="button" class="btn small green" onclick="attachCustomerPhoto(this,\'camera\')">📷 Camera</button>' +
-      '<button type="button" class="btn small" onclick="attachCustomerPhoto(this,\'gallery\')">🖼 Gallery</button>' +
-    '</div>' +
-    '<div class="photo-row"></div>';
+    '</div>';
   box.appendChild(card);
-  const photoRow = card.querySelector('.photo-row');
-  (it.photos || []).forEach(src => addPhotoThumb(photoRow, src, photoRow.children.length));
   calcTotal();
 }
 
@@ -719,17 +722,6 @@ function removeItemCard(btn) {
   calcTotal();
 }
 
-function attachCustomerPhoto(btn, mode) {
-  currentPhotoTarget = btn.closest('.product-card').querySelector('.photo-row');
-  const row = currentPhotoTarget;
-  if (row.children.length >= 5) { alert('Max 5 photos per item.'); return; }
-  const cam = document.getElementById('camInput');
-  const gal = document.getElementById('galInput');
-  const inp = mode === 'camera' ? cam : gal;
-  inp.value = '';
-  inp.onchange = (ev) => handlePhotoSelect(ev);
-  inp.click();
-}
 function calcTotal() {
   let total = 0;
   document.querySelectorAll('#itemsBox .product-card').forEach(card => {
@@ -750,32 +742,29 @@ async function saveBill() {
     const iname = (card.querySelector('.i-name').value || '').trim();
     const qty = toNumber(card.querySelector('.i-qty').value);
     const rate = toNumber(card.querySelector('.i-rate').value);
-    const photos = [];
-    card.querySelectorAll('.photo-row .photo-thumb').forEach(t => photos.push(t.dataset.src));
-    if (iname && qty > 0) items.push({ name: iname, qty, rate, photos });
+    if (iname && qty > 0) items.push({ name: iname, qty, rate });
   });
   if (!items.length) { alert('Add at least 1 item'); return; }
 
-  // Upload new photos to Firebase
-  const hasNewPhotos = items.some(it => it.photos.some(isDataUrl));
+  // Collect bill-level photos
+  const billPhotosRaw = [];
+  document.querySelectorAll('#customerPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
+  const hasNewPhotos = billPhotosRaw.some(isDataUrl);
   if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
     if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
   }
   showLoading('Photos upload ho rahi hain...');
+  const billPhotos = [];
   try {
-    for (const it of items) {
-      const out = [];
-      for (const photo of it.photos) {
-        if (isDataUrl(photo)) {
-          if (fbStorage && fbAuth && fbAuth.currentUser) {
-            const url = await uploadPhoto(photo);
-            if (url) out.push(url);
-          }
-        } else {
-          out.push(photo);
+    for (const p of billPhotosRaw) {
+      if (isDataUrl(p)) {
+        if (fbStorage && fbAuth && fbAuth.currentUser) {
+          const url = await uploadPhoto(p);
+          if (url) billPhotos.push(url);
         }
+      } else {
+        billPhotos.push(p);
       }
-      it.photos = out;
     }
   } finally { hideLoading(); }
 
@@ -790,7 +779,8 @@ async function saveBill() {
     name,
     date: validDate(document.getElementById('f-date').value),
     ptype: document.getElementById('f-ptype').value || 'cash',
-    items, payments: []
+    items, payments: [],
+    photos: billPhotos
   };
   if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('f-paiddate').value) });
   if (wasEditing) {
@@ -809,18 +799,18 @@ function renderDetail() {
   const pending = totalAmount(bill) - paid;
   const ptype = bill.ptype || '';
   let html = '<div class="meta">Date: ' + escapeHtml(bill.date || '-') + ' | Type: <span class="badge ' + ptype + '">' + escapeHtml(ptype) + '</span></div>';
- (bill.items || []).forEach((it, idx) => {
-  html += '<div style="padding:6px 0;border-bottom:1px solid #eee">' +
-    '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) +
-    '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>' +
-    (it.photos && it.photos.length
-      ? '<div class="photo-row">' + it.photos.map((src, i) =>
-          '<div class="photo-thumb" onclick="openViewerForCustomerItem(\'' + bill.id + '\',' + idx + ',' + i + ')">' +
-          '<img src="' + escapeHtml(src) + '"></div>').join('') + '</div>'
-      : '') +
-    '</div>';
-});
+  (bill.items || []).forEach(it => {
+    html += '<div class="row"><span>' + escapeHtml(it.name) + ' × ' + escapeHtml(it.qty) + '</span><span>Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '</span></div>';
+  });
   html += '<div class="row" style="font-weight:bold;margin-top:8px"><span>Total</span><span>Rs. ' + formatMoney(totalAmount(bill)) + '</span></div>';
+
+  if (bill.photos && bill.photos.length) {
+    html += '<h3 style="margin-top:10px">Bill Photos</h3>';
+    html += '<div class="photo-row">' + bill.photos.map((src, i) =>
+      '<div class="photo-thumb" onclick="openViewerForCustomerBill(\'' + bill.id + '\',' + i + ')">' +
+      '<img src="' + escapeHtml(src) + '"></div>').join('') + '</div>';
+  }
+
   if ((bill.payments || []).length) {
     html += '<h3 style="margin-top:10px">Payment History</h3>';
     bill.payments.forEach((p, idx) => {
@@ -957,7 +947,6 @@ function renderSupplierList() {
   const to = document.getElementById('customTo').value;
 
   list.innerHTML = '';
-  let totalDueAll = 0;
   let shownCount = 0;
 
   supBills.forEach((b) => {
@@ -967,7 +956,6 @@ function renderSupplierList() {
     const thisDue = thisTotal - paid;
     // Supplier-level total due (not just this bill)
     const supStats = supplierTotalDues(b.name || '');
-    totalDueAll += 0; // will compute after
     shownCount++;
 
     const nameMatch = String(b.name || '').toLowerCase().includes(q);
@@ -1070,7 +1058,7 @@ function addNewOpening() {
 function addProductRow(product = null) {
   const box = document.getElementById('productsBox');
   const idx = box.children.length;
-  const p = product || { name: '', qtyCartons: 0, rateCartons: 0, qtyUnits: 0, rateUnits: 0, unitType: '', photos: [] };
+  const p = product || { name: '', qtyCartons: 0, rateCartons: 0, qtyUnits: 0, rateUnits: 0, unitType: '' };
   const card = document.createElement('div');
   card.className = 'product-card';
   card.dataset.idx = idx;
@@ -1093,20 +1081,9 @@ function addProductRow(product = null) {
       '<div><label>Rate per Unit</label><input type="number" min="0" step="any" class="p-ru" value="' + (p.rateUnits || '') + '" oninput="recalcProducts()"></div>' +
     '</div>' +
 
-    '<div style="margin-top:6px;font-size:12px;color:#666">Product Total: Rs. <span class="p-total">0</span></div>' +
-
-    '<div class="photo-btns" style="margin-top:8px">' +
-      '<button type="button" class="btn small green" onclick="attachPhoto(this,\'camera\')">📷 Camera</button>' +
-      '<button type="button" class="btn small" onclick="attachPhoto(this,\'gallery\')">🖼 Gallery</button>' +
-    '</div>' +
-    '<div class="photo-row"></div>';
+    '<div style="margin-top:6px;font-size:12px;color:#666">Product Total: Rs. <span class="p-total">0</span></div>';
 
   box.appendChild(card);
-
-  // restore photos
-  const photoRow = card.querySelector('.photo-row');
-  (p.photos || []).forEach((src, i) => addPhotoThumb(photoRow, src, i));
-
   updateProductNumbers();
   recalcProducts();
 }
@@ -1127,20 +1104,15 @@ function updateProductNumbers() {
 function getProductsFromForm() {
   const products = [];
   document.querySelectorAll('#productsBox .product-card').forEach(card => {
-    const photos = [];
-    card.querySelectorAll('.photo-row .photo-thumb').forEach(t => {
-      photos.push(t.dataset.src);
-    });
     const p = {
       name: (card.querySelector('.p-name').value || '').trim(),
       qtyCartons: toNumber(card.querySelector('.p-qc').value),
       rateCartons: toNumber(card.querySelector('.p-rc').value),
       qtyUnits: toNumber(card.querySelector('.p-qu').value),
       unitType: (card.querySelector('.p-ut').value || '').trim(),
-      rateUnits: toNumber(card.querySelector('.p-ru').value),
-      photos
+      rateUnits: toNumber(card.querySelector('.p-ru').value)
     };
-    if (p.name && (productTotal(p) > 0 || photos.length > 0)) products.push(p);
+    if (p.name && productTotal(p) > 0) products.push(p);
   });
   return products;
 }
@@ -1199,6 +1171,7 @@ function newSupBill() {
   document.getElementById('s-paiddate').value = today();
   document.getElementById('s-already').classList.add('hidden');
   document.getElementById('s-opening-box').classList.add('hidden');
+  document.getElementById('supplierPhotoRow').innerHTML = '';
   document.getElementById('productsBox').innerHTML = '';
   addProductRow();
   document.getElementById('s-total').textContent = '0';
@@ -1228,6 +1201,10 @@ function editSupBill() {
 
   document.getElementById('s-opening-box').classList.toggle('hidden', currentSupOpening <= 0);
   if (currentSupOpening > 0) document.getElementById('s-opening-val').textContent = formatMoney(currentSupOpening);
+
+  const supPhotoRow = document.getElementById('supplierPhotoRow');
+  supPhotoRow.innerHTML = '';
+  (b.photos || []).forEach(src => addPhotoThumb(supPhotoRow, src, supPhotoRow.children.length));
 
   const box = document.getElementById('productsBox'); box.innerHTML = '';
   (b.products || []).forEach(p => addProductRow(p));
@@ -1275,27 +1252,25 @@ async function saveSupBill() {
   const products = getProductsFromForm();
   if (!products.length) { alert('Kam se kam 1 product add karo.'); return; }
 
-  // Upload any new photos
-  const hasNewPhotos = products.some(p => p.photos.some(isDataUrl));
+  // Collect bill-level photos
+  const billPhotosRaw = [];
+  document.querySelectorAll('#supplierPhotoRow .photo-thumb').forEach(t => billPhotosRaw.push(t.dataset.src));
+  const hasNewPhotos = billPhotosRaw.some(isDataUrl);
   if (hasNewPhotos && (!fbStorage || !fbAuth || !fbAuth.currentUser)) {
     if (!confirm('Photos ke liye login zaroori hai. Login ke bina photos save nahi hongi. Continue?')) return;
   }
-
   showLoading('Photos upload ho rahi hain...');
+  const billPhotos = [];
   try {
-    for (const p of products) {
-      const out = [];
-      for (const photo of p.photos) {
-        if (isDataUrl(photo)) {
-          if (fbStorage && fbAuth && fbAuth.currentUser) {
-            const url = await uploadPhoto(photo);
-            if (url) out.push(url);
-          }
-        } else {
-          out.push(photo);
+    for (const p of billPhotosRaw) {
+      if (isDataUrl(p)) {
+        if (fbStorage && fbAuth && fbAuth.currentUser) {
+          const url = await uploadPhoto(p);
+          if (url) billPhotos.push(url);
         }
+      } else {
+        billPhotos.push(p);
       }
-      p.photos = out;
     }
   } finally { hideLoading(); }
 
@@ -1315,7 +1290,8 @@ async function saveSupBill() {
     orderNo: document.getElementById('s-orderno').value.trim(),
     ptype: document.getElementById('s-ptype').value || 'credit',
     products,
-    payments: []
+    payments: [],
+    photos: billPhotos
   };
   if (paid > 0) billData.payments.push({ amount: paid, date: validDate(document.getElementById('s-paiddate').value) });
 
@@ -1346,7 +1322,6 @@ function renderSupDetail() {
   const paid = supPaid(b);
   const stats = supplierTotalDues(b.name || '');
 
-  // Supplier-level badge
   const badge = document.getElementById('sd-badge');
   badge.classList.remove('hidden', 'badge-paid', 'badge-partial', 'badge-due');
   if (stats.due <= 0) { badge.classList.add('badge-paid'); badge.textContent = 'PAID'; }
@@ -1368,9 +1343,15 @@ function renderSupDetail() {
     html += '<div style="padding:8px 0;border-bottom:1px solid #eee">' +
       '<div class="row"><span style="font-weight:bold">' + escapeHtml(p.name || '-') + '</span><span>Rs. ' + formatMoney(t) + '</span></div>' +
       (line ? '<div class="meta">' + escapeHtml(line) + '</div>' : '') +
-      (p.photos && p.photos.length ? '<div class="photo-row">' + p.photos.map((src, i) => '<div class="photo-thumb" onclick="openViewerForProduct(\'' + b.id + '\',' + (b.products.indexOf(p)) + ',' + i + ')"><img src="' + escapeHtml(src) + '"></div>').join('') + '</div>' : '') +
       '</div>';
   });
+
+  if (b.photos && b.photos.length) {
+    html += '<h3 style="margin-top:10px">Bill Photos</h3>';
+    html += '<div class="photo-row">' + b.photos.map((src, i) =>
+      '<div class="photo-thumb" onclick="openViewerForSupplierBill(\'' + b.id + '\',' + i + ')">' +
+      '<img src="' + escapeHtml(src) + '"></div>').join('') + '</div>';
+  }
 
   html += '<div class="row" style="font-weight:bold;margin-top:10px"><span>This Bill Total</span><span>Rs. ' + formatMoney(thisBill) + '</span></div>';
 
@@ -1392,7 +1373,6 @@ function renderSupDetail() {
 
   document.getElementById('sd-details').innerHTML = html;
 }
-
 function removeSupPayment(idx) {
   if (!confirm('Delete this payment?')) return;
   const b = getSup();
@@ -1452,15 +1432,15 @@ function shareSupWhatsApp() {
 }
 
 /* ============ PHOTOS: ATTACH / VIEW ============ */
-let currentPhotoTarget = null; // product card that will receive photo
+let currentBillPhotoRow = null;
 
-function attachPhoto(btn, mode) {
-  currentPhotoTarget = btn.closest('.product-card').querySelector('.photo-row');
-  const row = currentPhotoTarget;
-  if (row.children.length >= 5) { alert('Max 5 photos per product.'); return; }
-  const cam = document.getElementById('camInput');
-  const gal = document.getElementById('galInput');
-  const inp = mode === 'camera' ? cam : gal;
+function attachBillPhoto(type, mode) {
+  const rowId = type === 'customer' ? 'customerPhotoRow' : 'supplierPhotoRow';
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  if (row.children.length >= 5) { alert('Max 5 photos.'); return; }
+  currentBillPhotoRow = row;
+  const inp = mode === 'camera' ? document.getElementById('camInput') : document.getElementById('galInput');
   inp.value = '';
   inp.onchange = (ev) => handlePhotoSelect(ev);
   inp.click();
@@ -1469,8 +1449,8 @@ function attachPhoto(btn, mode) {
 function handlePhotoSelect(ev) {
   const f = ev.target.files[0];
   if (!f) return;
-  const row = currentPhotoTarget;
-  currentPhotoTarget = null;
+  const row = currentBillPhotoRow;
+  currentBillPhotoRow = null;
   if (!row) return;
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -1504,19 +1484,15 @@ function openViewerFromThumb(img) {
   openViewer(srcs, start);
 }
 
-function openViewerForProduct(billId, productIdx, photoIdx) {
+function openViewerForSupplierBill(billId, photoIdx) {
   const b = supBills.find(x => x.id === billId);
   if (!b) return;
-  const p = (b.products || [])[productIdx];
-  if (!p) return;
-  openViewer(p.photos || [], photoIdx);
+  openViewer(b.photos || [], photoIdx);
 }
-function openViewerForCustomerItem(billId, itemIdx, photoIdx) {
+function openViewerForCustomerBill(billId, photoIdx) {
   const bill = bills.find(x => x.id === billId);
   if (!bill) return;
-  const it = (bill.items || [])[itemIdx];
-  if (!it) return;
-  openViewer(it.photos || [], photoIdx);
+  openViewer(bill.photos || [], photoIdx);
 }
 
 /* ============ PHOTO VIEWER ============ */
@@ -1874,13 +1850,52 @@ window.addEventListener('load', () => {
   if (!hasPIN()) startSetup();
   else startLock();
   if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500);
-  
-  // 👇 Version dikhane wali lines
+
+  // Version dikhane wali lines
   const vEl = document.getElementById('appVersion');
   if (vEl) vEl.textContent = APP_VERSION;
   const vsEl = document.getElementById('appVersionSettings');
   if (vsEl) vsEl.textContent = APP_VERSION;
+
+  // Back button guard — app band hone se rokne ke liye
+  try {
+    if (!history.state || !history.state.appGuard) {
+      history.replaceState({ appGuard: true }, '');
+      history.pushState({ appGuard: true }, '');
+    }
+  } catch(e) {}
 });
+
+window.addEventListener('popstate', (e) => {
+  // Agar photo viewer khula hai to pehle usko band karo
+  const viewerEl = document.getElementById('photoViewer');
+  if (viewerEl && !viewerEl.classList.contains('hidden')) {
+    closeViewer();
+    try { history.pushState({ appGuard: true }, ''); } catch(err) {}
+    return;
+  }
+
+  const onSub = screenVisible('formScreen') || screenVisible('detailScreen') ||
+                screenVisible('supFormScreen') || screenVisible('supDetailScreen') ||
+                screenVisible('settingsScreen') || screenVisible('openingsScreen');
+
+  if (onSub) {
+    const isSup = screenVisible('supFormScreen') || screenVisible('supDetailScreen') || screenVisible('openingsScreen');
+    if (isSup) {
+      currentSupId = null;
+      showScreen('supListScreen');
+      renderSupplierList();
+    } else {
+      currentBillId = null;
+      showScreen('listScreen');
+      renderList();
+    }
+    try { history.pushState({ appGuard: true }, ''); } catch(err) {}
+  }
+});
+  
+ 
+
 </script>
 
 <datalist id="unitTypes">
