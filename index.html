@@ -252,6 +252,18 @@
     <div><span id="t-sups">Suppliers</span><b id="supCount">0</b></div>
     <div><span id="t-supdue">Total Dues</span><b id="totalDue">0</b></div>
   </div>
+  <!-- Total Purchases: har supplier bill kabhi ka bhi + har supplier ki opening sirf EK baar (all time) -->
+  <div class="total-box" id="supPurchasesBox" style="background:#e9f7ef">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+      <span>🛒 Total Purchases</span><span>Rs. <b id="supPurchasesBills">0</b></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-weight:normal;font-size:13px;color:#5f6368;margin-top:6px">
+      <span>+ Opening Balance <span style="font-size:11px">(each supplier, once)</span></span><span>Rs. <b id="supPurchasesOpening">0</b></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-top:6px;padding-top:6px;border-top:1px solid #cfe6d8">
+      <span>Purchases + Opening</span><span>Rs. <b id="supPurchasesGrand">0</b></span>
+    </div>
+  </div>
   <button class="btn" onclick="newSupBill()">+ <span id="t-newsupbill">New Supplier Bill</span></button>
   <button class="btn dark" onclick="openOpeningsManager()">💰 Manage Opening Balances</button>
   <div class="filter-bar">
@@ -575,7 +587,7 @@ service cloud.firestore {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.1.1';
+  const APP_VERSION = 'v1.1.2';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -1925,6 +1937,7 @@ function renderSupplierList() {
   // Har supplier ka stats ek hi baar nikalo (pehle har card par O(n) tha → O(n^2))
   // Key case-insensitive — "Ram" aur "ram" ka dues ek hi jagah jama ho
   const statsByName = new Map();
+  let totalPurchased = 0;
   function statsFor(name) {
     const key = supKey(name);
     let s = statsByName.get(key);
@@ -1933,10 +1946,22 @@ function renderSupplierList() {
   }
   supBills.forEach(b => {
     const s = statsFor(b.name || '');
-    s.billsTotal += supBillTotal(b);
+    const t = supBillTotal(b);
+    s.billsTotal += t;
     s.paid += supPaid(b);
+    totalPurchased += t;                 // Total Purchases = har supplier bill (kabhi ka bhi)
   });
   Object.keys(supplierOpenings).forEach(n => statsFor(n)); // sirf opening wale suppliers bhi count ho
+
+  // Opening balance har supplier ki sirf EK baar add hoti hai (case-insensitive duplicate keys ke saath bhi)
+  let openingSum = 0;
+  const openingSeen = new Set();
+  Object.keys(supplierOpenings).forEach(k => {
+    const key = supKey(k);
+    if (!key || openingSeen.has(key)) return;
+    openingSeen.add(key);
+    openingSum += toNumber(supplierOpenings[k]);
+  });
   function duesOf(name) {
     const s = statsFor(name);
     const total = s.opening + s.billsTotal;
@@ -1990,6 +2015,12 @@ function renderSupplierList() {
 
   document.getElementById('supCount').textContent = supplierCount;
   document.getElementById('totalDue').textContent = formatMoney(grandDue);
+
+  // Total Purchases block (filter/search se independent — "till now" wala hisaab)
+  const setPurchase = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = formatMoney(v); };
+  setPurchase('supPurchasesBills', totalPurchased);
+  setPurchase('supPurchasesOpening', openingSum);
+  setPurchase('supPurchasesGrand', totalPurchased + openingSum);
 
   const summary = document.getElementById('filterSummary');
   if (filter === 'all') summary.textContent = 'Showing all ' + shownCount + ' bills';
