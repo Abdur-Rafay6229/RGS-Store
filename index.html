@@ -114,9 +114,28 @@
   .filter-bar .custom-range { display:flex; gap:6px; }
   .filter-bar .custom-range input { padding:8px; font-size:12px; }
   .filter-bar .filter-summary { font-size:12px; color:#666; margin-top:6px; text-align:center; }
+
+  /* ===== ADMIN BANNER (jab Admin kisi user ke account me ho) ===== */
+  .admin-banner { position:sticky; top:0; z-index:600; background:#202124; color:#fff; padding:9px 12px;
+    display:flex; align-items:center; gap:8px; font-size:12px; box-shadow:0 2px 6px rgba(0,0,0,.3); margin:-60px -15px 15px; }
+  .admin-banner .ab-text { flex:1; text-align:left; line-height:1.35; word-break:break-word; }
+  .admin-banner .ab-exit { background:#f9ab00; color:#202124; border:none; border-radius:14px; padding:7px 11px;
+    font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+
+  /* ===== ACCOUNTS (Admin) ===== */
+  .acct-card .acct-mail { font-size:13px; color:#1a73e8; word-break:break-all; margin-bottom:6px; }
+  .role-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold; color:#fff; background:#5f6368; }
+  .role-pill.admin { background:#7b1fa2; }
+  .cl-hint { margin-top:8px; font-size:11px; color:#888; text-align:left; line-height:1.45; }
 </style>
 </head>
 <body>
+
+<!-- ADMIN BANNER — jab Admin kisi doosre user ke account ko dekh raha ho -->
+<div id="adminBanner" class="admin-banner hidden">
+  <div class="ab-text" id="adminBannerText">👑 Admin</div>
+  <button type="button" class="ab-exit" onclick="exitImpersonation()">⬅ Exit Account</button>
+</div>
 
 <!-- SETUP -->
 <div id="setupScreen" class="lock-wrap hidden">
@@ -146,20 +165,21 @@
   <button class="bio-btn hidden" id="bioUnlockBtn" onclick="tryBiometric()">👆 Unlock with Fingerprint / Face</button>
 </div>
 
-<!-- LOGIN -->
+<!-- LOGIN (app ka apna account system — email + password) -->
 <div id="loginScreen" class="lock-wrap hidden">
   <div class="setup-box">
-    <div class="lock-icon">☁️</div>
-    <div class="lock-title">Sign in to Cloud</div>
-    <div class="lock-sub">Backup your data safely (photos ke liye zaroori)</div>
+    <div class="lock-icon">🔐</div>
+    <div class="lock-title">Sign in to your account</div>
+    <div class="lock-sub">Email + password — data sirf usi account ka dikhega</div>
     <label>Email</label>
     <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
-    <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
     <div class="error-msg" id="loginErr"></div>
     <button class="btn" onclick="doLogin()">Sign In</button>
     <button class="btn gray" onclick="doSignup()">Create New Account</button>
-    <button class="link-btn" onclick="goBackFromLogin()">← Back</button>
+    <button class="link-btn hidden" id="loginBackBtn" onclick="goBackFromLogin()">← Back</button>
+    <p class="cl-hint" style="text-align:center">Login sirf ek baar karna padta hai — app session yaad rakhta hai, jab tak aap khud Sign Out na karein.</p>
   </div>
 </div>
 
@@ -168,7 +188,7 @@
   <div class="header">
   <h1 id="t-store">Rajpoot General Store</h1>
   <p id="t-sub">Customer Bills Manager</p>
-  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.0.2</span></p>
+  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.1.0</span></p>
 </div>
   <div class="summary">
     <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
@@ -177,6 +197,7 @@
   <button class="btn" onclick="newBill()">+ <span id="t-newbill">New Bill</span></button>
   <button class="btn" onclick="showSupplierList()">🏭 <span id="t-suppliers">Suppliers</span></button>
   <button class="btn dark" onclick="openSettings()">⚙️ <span id="t-settings">Settings</span></button>
+  <button class="btn dark hidden" id="accountsBtn" onclick="openAccounts()">👥 Accounts (Admin)</button>
   <button class="btn dark hidden" id="installBtn" onclick="installApp()">⬇️ <span id="t-install">Install App</span></button>
   <input id="billSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderList()">
   <div id="billList"></div>
@@ -329,6 +350,20 @@
   <button class="btn" onclick="showSupplierList()">← Back</button>
 </div>
 
+<!-- ACCOUNTS (SIRF ADMIN) -->
+<div id="accountsScreen" class="hidden">
+  <div class="header"><h1>👥 Accounts</h1><p>Admin only — kisi bhi user ka account kholein</p></div>
+  <div class="card" style="cursor:default;background:#e8f0fe">
+    <div class="meta" style="margin:0">
+      Yeh list sirf Admin ko dikhti hai. Kisi account par <b>Open</b> dabane par uska data (bills, suppliers,
+      photos, Cloudinary status) isi app me khul jayega — uske email/password ki zaroorat nahi.
+      Admin ka apna data alag rehta hai.
+    </div>
+  </div>
+  <div id="accountsList"></div>
+  <button class="btn" onclick="showList()">← Back</button>
+</div>
+
 <!-- PHOTO VIEWER -->
 <div id="photoViewer" class="viewer-overlay hidden">
   <div class="viewer-top">
@@ -354,72 +389,128 @@
     <button class="btn small" style="margin-top:5px" onclick="toggleBiometric()">Toggle Biometric</button>
   </div>
   <div class="card" style="cursor:default">
-    <h3>☁️ Cloud Backup</h3>
-    <div class="row" style="margin-top:8px"><span>Status</span><span id="cloudStatus">Not signed in</span></div>
+    <h3>👤 Account (Login &amp; Cloud Backup)</h3>
+    <div class="row" style="margin-top:8px"><span>Signed in as</span><span id="cloudStatus" style="max-width:60%;text-align:right;word-break:break-all">—</span></div>
+    <div class="row"><span>Role</span><span id="accountRole">—</span></div>
     <div class="row"><span>Last sync</span><span id="lastSync">—</span></div>
     <div class="row"><span>Sync status</span><span id="syncErr" style="max-width:62%;text-align:right;font-size:11px;line-height:1.35;word-break:break-word">—</span></div>
-    <button class="btn small" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign In</button>
+    <button class="btn small red" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign Out</button>
     <button class="btn small green hidden" style="margin-top:5px" id="syncBtn" onclick="syncNow()">Sync Now</button>
     <button class="btn small hidden" style="margin-top:5px" id="restoreBtn" onclick="restoreFromCloud()">Restore from Cloud</button>
     <button class="btn small gray" style="margin-top:5px" id="cloudCheckBtn" onclick="runCloudCheck()">🩺 Check Cloud Access</button>
     <details id="cloudRulesBox" style="margin-top:10px;font-size:12px;color:#666;text-align:left">
-      <summary style="cursor:pointer">Permission error aaye to yeh rules paste karo</summary>
-      <p style="margin:8px 0 4px">Console → <b>Firestore Database → Rules</b>:</p>
+      <summary style="cursor:pointer">Rules (har user ka data alag) + Admin kaise banayein</summary>
+      <p style="margin:8px 0 4px">Console → <b>Firestore Database → Rules</b> me yeh poora rules paste karke <b>Publish</b> karo:</p>
       <pre class="rules-pre">rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Sirf Firebase Console se banaya gaya admin account admin hai
+    function isAdmin() {
+      return request.auth != null
+        &amp;&amp; exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // 1) Har user ka apna app data (bills, suppliers, openings, Cloudinary)
     match /stores/{userId} {
       allow read, write: if request.auth != null
-                         &amp;&amp; request.auth.uid == userId;
+                         &amp;&amp; (request.auth.uid == userId || isAdmin());
+    }
+
+    // 2) Account directory (email list) — sirf apna, aur sirf Admin poori list
+    match /profiles/{userId} {
+      allow get: if request.auth != null
+                 &amp;&amp; (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if request.auth != null
+                            &amp;&amp; request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // 3) Admin marker — CLIENT kuch bhi likh/bole nahi (sirf Console)
+    match /admins/{userId} {
+      allow read: if request.auth != null
+                  &amp;&amp; (request.auth.uid == userId || isAdmin());
+      allow write: if false;
     }
   }
 }</pre>
-      <p style="margin:8px 0 4px">Console → <b>Storage → Rules</b>:</p>
-      <pre class="rules-pre">rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /photos/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null
-                         &amp;&amp; request.auth.uid == userId;
-    }
-  }
-}</pre>
-      <p style="margin:8px 0 0">Rules publish karne ke baad <b>Check Cloud Access</b> dobara chalao. Agar rules sahi hone ke baad bhi permission error aaye to Console → <b>App Check → Enforcement</b> band karo (web ke liye).</p>
+      <p style="margin:8px 0 4px"><b>👑 Admin kaise banayein</b> (ye sirf ek baar karna hai):</p>
+      <ol style="margin:0 0 6px 18px;line-height:1.5">
+        <li>App me apne admin email se <b>Create New Account</b> karo aur login raho.</li>
+        <li>Neeche apna <b>UID</b> copy karo.</li>
+        <li>Console → <b>Firestore Database → Add collection</b>: collection ID = <b>admins</b>.</li>
+        <li>Document ID = wahi <b>UID</b>, field <b>role</b> = <b>admin</b> (string) → Save.</li>
+        <li>App me Settings → <b>Refresh Admin Status</b> dabao (ya app dobara kholo).</li>
+      </ol>
+    <div class="row" style="gap:6px"><span>Your UID</span><span id="myUid" style="max-width:58%;word-break:break-all;font-size:11px">—</span></div>
+    <button class="btn small gray" style="margin-top:6px" onclick="copyMyUid()">📋 Copy UID</button>
+    <button class="btn small gray" style="margin-top:6px" onclick="refreshAdminStatus()">🔄 Refresh Admin Status</button>
+    <p style="margin-top:8px;font-size:11px;color:#888">
+      Roles client par kabhi store nahi hote — Admin ka darja Firestore rules se check hota hai,
+      isliye koi normal user frontend/localStorage badal kar khud ko Admin nahi bana sakta.
+      Photos hamesha <b>Cloudinary</b> par jate hain, isliye Storage rules ki zaroorat nahi hai.
+    </p>
     </details>
   </div>
   <div class="card" style="cursor:default">
     <h3>🖼️ Cloudinary (Photo Storage)</h3>
-    <div class="row" style="margin-top:8px"><span>Status</span><span id="clStatus">Not configured</span></div>
 
-    <label for="clCloudName">Cloud Name</label>
-    <input id="clCloudName" type="text" placeholder="jaise: rgsstore01" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <!-- Signed OUT → sirf Sign In button (fields bilkul band) -->
+    <button class="btn small" style="margin-top:10px" id="clSignInBtn" onclick="cloudinarySignIn()">🔑 Sign In to Cloudinary</button>
+    <p class="cl-hint" id="clSignInHint">
+      Photo upload se pehle Cloudinary me sign in karna zaroori hai.
+      Sign In dabaate hi Cloud Name / Upload Preset wali fields khul jayengi — details bhar kar <b>Save</b> karo.
+    </p>
 
-    <label for="clPreset">Upload Preset (unsigned)</label>
-    <input id="clPreset" type="text" placeholder="Cloudinary → Settings → Upload → Upload presets" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <!-- Status + configuration fields (sirf signed-in hone par) -->
+    <div class="row hidden" id="clStatusRow" style="margin-top:8px"><span>Status</span><span id="clStatus">—</span></div>
 
-    <label for="clFolder">Folder (optional)</label>
-    <input id="clFolder" type="text" placeholder="rgs-photos" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <div id="clFields" class="hidden">
+      <label for="clCloudName">Cloud Name</label>
+      <input id="clCloudName" type="text" placeholder="jaise: rgsstore01" autocapitalize="off" autocomplete="off" spellcheck="false">
 
-    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
-      <input type="checkbox" id="clEnabled" style="width:auto;padding:0"> Enable — nayi photos Cloudinary par jayengi
-    </label>
+      <label for="clPreset">Upload Preset (unsigned)</label>
+      <input id="clPreset" type="text" placeholder="Cloudinary → Settings → Upload → Upload presets" autocapitalize="off" autocomplete="off" spellcheck="false">
 
-    <details id="clAdv" style="margin-top:8px;font-size:12px;color:#666;text-align:left">
-      <summary style="cursor:pointer">Advanced (optional) — photo delete ke liye</summary>
-      <label for="clApiKey">API Key</label>
-      <input id="clApiKey" type="text" inputmode="numeric" autocomplete="off">
-      <label for="clApiSecret">API Secret</label>
-      <input id="clApiSecret" type="password" autocomplete="off">
-      <p style="margin:6px 0 0;font-size:11px">Yeh dono field sirf is device par rehti hain (backup export me nahi jaati). Tabhi bharo jab bill delete hone par Cloudinary se photo bhi hatani ho. Sirf upload ke liye Cloud Name + Preset kaafi hain.</p>
-    </details>
+      <label for="clFolder">Folder (optional)</label>
+      <input id="clFolder" type="text" placeholder="rgs-photos" autocapitalize="off" autocomplete="off" spellcheck="false">
 
-    <button class="btn small" style="margin-top:10px" id="clSaveBtn" onclick="saveCloudinaryCfg()">💾 Save Cloudinary</button>
-    <button class="btn small gray" style="margin-top:5px" id="clTestBtn" onclick="testCloudinary()">🧪 Test Upload</button>
-    <button class="btn small gray" style="margin-top:5px" onclick="clearCloudinaryCfg()">Clear Config</button>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
+        <input type="checkbox" id="clEnabled" style="width:auto;padding:0"> Enable — sign in karke nayi photos Cloudinary par bhejo
+      </label>
+
+      <details id="clAdv" style="margin-top:8px;font-size:12px;color:#666;text-align:left">
+        <summary style="cursor:pointer">Advanced (optional) — photo delete ke liye</summary>
+        <label for="clApiKey">API Key</label>
+        <input id="clApiKey" type="text" inputmode="numeric" autocomplete="off">
+        <label for="clApiSecret">API Secret</label>
+        <input id="clApiSecret" type="password" autocomplete="off">
+        <p style="margin:6px 0 0;font-size:11px">Yeh dono field sirf isi account ke liye rehti hain (backup export me nahi jaati). Tabhi bharo jab bill delete hone par Cloudinary se photo bhi hatani ho. Sirf upload ke liye Cloud Name + Preset kaafi hain.</p>
+      </details>
+
+      <button class="btn small" style="margin-top:10px" id="clSaveBtn" onclick="saveCloudinaryCfg()">💾 Save Cloudinary (Sign In)</button>
+      <button class="btn small gray" style="margin-top:5px" id="clTestBtn" onclick="testCloudinary()">🧪 Test Upload</button>
+      <button class="btn small gray" style="margin-top:5px" id="clSignOutBtn" onclick="cloudinarySignOut()">🚪 Sign Out of Cloudinary</button>
+      <button class="btn small gray" style="margin-top:5px" onclick="clearCloudinaryCfg()">Clear Config</button>
+    </div>
+
     <div id="clMsg" style="margin-top:8px;font-size:12px;color:#666;text-align:left;word-break:break-word"></div>
     <p style="margin-top:8px;font-size:11px;color:#888;text-align:left">
       Setup: Cloudinary → Settings → <b>Upload</b> → Upload presets → naya <b>Unsigned</b> preset banao, aur Cloud Name Cloudinary Dashboard se copy karo.<br>
-      Cloudinary ON hone par Firebase login ki zaroorat nahi — bina sign-in ke bhi photos upload ho jayengi.
+      Config isi account (<b>Cloudinary config user-specific</b>) aur uske cloud backup me rehti hai — doosra account aapki config nahi dekh sakta.
+      Sign Out karte hi photo upload band ho jata hai (koi fallback nahi).
+    </p>
+  </div>
+  <div class="card hidden" id="adminCard" style="cursor:default">
+    <h3>👑 Admin</h3>
+    <div class="row" style="margin-top:8px"><span>Your role</span><span id="adminRoleStatus">—</span></div>
+    <div class="row"><span>Accounts visible</span><span id="adminAccountCount">—</span></div>
+    <button class="btn small" style="margin-top:10px" onclick="openAccounts()">👥 Accounts (all users)</button>
+    <p style="margin-top:8px;font-size:11px;color:#888;text-align:left">
+      Admin ke paas har user ke account ka data dekhne/sambhalne ka access hai (bina password ke).
+      Admin ka apna data usse alag rehta hai. Role sirf Firebase Console se banta hai —
+      details neeche "Rules" section me.
     </p>
   </div>
   <div class="card" style="cursor:default">
@@ -431,7 +522,7 @@ service firebase.storage {
   <div class="card" style="cursor:default;text-align:center">
   <div style="font-size:12px;color:#666">
     Rajpoot General Store<br>
-    <strong id="appVersionSettings">v1.0.4</strong>
+    <strong id="appVersionSettings">v1.1.0</strong>
   </div>
 </div>
   <button class="btn" onclick="showList()">← Back to App</button>
@@ -441,14 +532,13 @@ service firebase.storage {
 <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
 <input type="file" id="galInput" accept="image/*" class="hidden">
 
-<!-- FIREBASE SDK -->
+<!-- FIREBASE SDK (Auth + Firestore) — photo storage sirf Cloudinary hai -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.0.4';
+  const APP_VERSION = 'v1.1.0';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -460,16 +550,166 @@ const firebaseConfig = {
 };
 
 let firebaseReady = false;
-let fbAuth = null, fbDb = null, fbStorage = null;
+let fbAuth = null, fbDb = null;
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
     firebase.initializeApp(firebaseConfig);
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
-    try { fbStorage = firebase.storage(); } catch(e) { console.warn('Storage not available', e); }
+    // Session ek baar login karne par yaad rahe (browser/local persistence)
+    try { fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (e) { console.warn('setPersistence failed', e); }
     firebaseReady = true;
   }
 } catch (e) { console.warn('Firebase init failed:', e); }
+
+/* ============ ACCOUNT (login + per-user data + admin) ============
+   Har account ka data poori tarah alag rehta hai:
+   - localStorage keys account UID ke saath namespace hoti hain (acctKey)
+   - Firestore me sirf stores/{uid} — rules owner ya Admin ko hi allow karte hain
+   - Role (Admin) sirf Firestore admins/{uid} doc se aata hai, client kabhi nahi
+*/
+let activeDataUid = '';        // jis account ka data abhi loaded hai
+let adminViewing = false;      // Admin kisi doosre user ke account me hai
+let impersonatedUid = '';
+let impersonatedEmail = '';
+let adminFlag = false;         // display gate — asli check Firestore rules me
+let sessionBooted = false;     // is app-session me account boot ho chuka
+let deviceUnlocked = false;    // PIN/setup ke baad true
+let suppressSync = false;      // data load karte waqt auto-push na chale
+
+function acctKey(base) { return activeDataUid ? base + '::' + activeDataUid : base; }
+function isAdmin() { return adminFlag === true; }
+function ownerUidNow() { return activeDataUid || (fbAuth && fbAuth.currentUser ? fbAuth.currentUser.uid : ''); }
+
+// Purana (single-user) data — pehle login karne wala account claim kar le,
+// warna doosra user bhi wahi bills dekh leta. Sirf ek baar chalta hai.
+function migrateLegacyData() {
+  if (!activeDataUid) return;
+  if (localStorage.getItem('rgs_legacy_migrated')) return;
+  const keys = ['rgs_bills', 'rgs_suppliers', 'rgs_supplier_openings', 'rgs_cloudinary'];
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v === null) continue;
+    if (localStorage.getItem(acctKey(k)) !== null) { try { localStorage.removeItem(k); } catch (e) {} continue; }
+    try { localStorage.setItem(acctKey(k), v); localStorage.removeItem(k); }
+    catch (e) { console.warn('Legacy migration failed:', k, e); return; }   // agla session dobara try karega
+  }
+  try { localStorage.setItem('rgs_legacy_migrated', '1'); } catch (e) {}
+}
+
+function clearAccountMemory() {
+  bills = []; supBills = []; supplierOpenings = [];
+  cloudinaryCfg = null; clFieldsOpen = false;
+  currentBillId = null; currentSupId = null;
+  editingId = null; editingSupId = null;
+  editExistingPaid = 0; supExistingPaid = 0; currentSupOpening = 0;
+  pendingPhotoDeletes = [];
+}
+
+function loadLocalAccountData() {
+  bills = loadBills();
+  supBills = loadSupBills();
+  supplierOpenings = loadOpenings();
+  cloudinaryCfg = null;      // naya account → uski apni Cloudinary config load ho
+  clFieldsOpen = false;
+  loadCloudinaryCfg();
+}
+
+function localSavedAt() {
+  const n = Number(localStorage.getItem(acctKey('rgs_saved_at')));
+  return isFinite(n) ? n : 0;
+}
+function markLocalSaved() {
+  if (!activeDataUid || suppressSync) return;
+  try { localStorage.setItem(acctKey('rgs_saved_at'), String(Date.now())); } catch (e) {}
+}
+function hasAnyAccountData() {
+  return bills.length > 0 || supBills.length > 0 || Object.keys(supplierOpenings).length > 0;
+}
+
+function applyCloudData(d) {
+  bills = normalizeBills(d.bills);
+  supBills = normalizeSupBills(d.supBills);
+  supplierOpenings = normalizeOpenings(d.supplierOpenings);
+  safeSet(acctKey('rgs_bills'), bills);
+  safeSet(acctKey('rgs_suppliers'), supBills);
+  safeSet(acctKey('rgs_supplier_openings'), supplierOpenings);
+  if (d.cloudinary) {
+    cloudinaryCfg = normalizeCloudinary(d.cloudinary);
+    if (cloudinaryCfg) { try { localStorage.setItem(acctKey('rgs_cloudinary'), JSON.stringify(cloudinaryCfg)); } catch (e) {} }
+  }
+  const at = (d.updatedAt && typeof d.updatedAt.toMillis === 'function') ? d.updatedAt.toMillis() : 0;
+  if (at) { try { localStorage.setItem(acctKey('rgs_saved_at'), String(at)); } catch (e) {} }
+}
+
+// App start / unlock par: local cache turant, phir cloud se taaza data (naye device ke liye)
+async function bootstrapAccountData() {
+  loadLocalAccountData();
+  if (!firebaseReady || !activeDataUid) return;
+  if (!navigator.onLine) { setSyncError('Offline — device ka local data dikh raha hai.'); return; }
+
+  let cloudDoc = null;
+  try {
+    cloudDoc = await withTimeout(fbDb.collection('stores').doc(activeDataUid).get(), 15000, 'Cloud read timeout');
+  } catch (e) {
+    console.warn('Bootstrap read failed:', e);
+    setSyncError('Restore failed: ' + cloudErrorText(e));
+    return;
+  }
+  if (!cloudDoc.exists) {
+    if (hasAnyAccountData() && !adminViewing) await pushToCloud();
+    return;
+  }
+  const d = cloudDoc.data() || {};
+  const cloudBills = normalizeBills(d.bills);
+  const cloudSup = normalizeSupBills(d.supBills);
+  const cloudOpenings = normalizeOpenings(d.supplierOpenings);
+  const cloudHas = cloudBills.length > 0 || cloudSup.length > 0 || Object.keys(cloudOpenings).length > 0;
+  const localHas = hasAnyAccountData();
+  const cloudAt = (d.updatedAt && typeof d.updatedAt.toMillis === 'function') ? d.updatedAt.toMillis() : 0;
+
+  if (!localHas || (cloudAt && cloudAt >= localSavedAt())) {
+    applyCloudData(d);                       // cloud me data (aur wo naya hai) → wahi lo
+    setSyncError('');
+  } else if (cloudHas || !adminViewing) {
+    suppressSync = true;
+    await pushToCloud();                     // is device par naya data hai → cloud par bhejo
+    suppressSync = false;
+  }
+  if (screenVisible('settingsScreen')) updateSettingsUI();
+}
+
+// Apna role (Admin hai ya nahi) — hamesha Firestore se, client storage se kabhi nahi
+async function fetchAdminFlag(showMsg) {
+  adminFlag = false;
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser) { if (showMsg) alert('Sign in nahi hai.'); return false; }
+  try {
+    const snap = await withTimeout(fbDb.collection('admins').doc(fbAuth.currentUser.uid).get(), 15000, 'Admin check timeout');
+    adminFlag = !!snap.exists && (snap.data() || {}).role !== 'user';
+  } catch (e) {
+    console.warn('Admin status check failed:', e);
+    adminFlag = false;
+    if (showMsg) alert('❌ Admin status check fail:\n\n' + cloudErrorText(e) + '\n\nRules publish kiye hain? (Settings → Account → Rules)');
+  }
+  refreshChrome();
+  return adminFlag;
+}
+
+// Har naye/apne account ka profile doc (Admin ko accounts list chahiye)
+async function ensureProfile() {
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser) return false;
+  if (adminViewing) return true;   // Admin kisi aur ke account me hai — uska profile wo khud banayega
+  const uid = fbAuth.currentUser.uid;
+  try {
+    const ref = fbDb.collection('profiles').doc(uid);
+    const snap = await withTimeout(ref.get(), 15000, 'Profile read timeout');
+    const email = fbAuth.currentUser.email || '';
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    if (!snap.exists) await ref.set({ email, createdAt: now, updatedAt: now });
+    else await ref.update({ email, updatedAt: now });
+    return true;
+  } catch (e) { console.warn('Profile save failed:', e); return false; }
+}
 
 /* ============ SECURITY (PIN + BIOMETRIC) ============ */
 const PIN_KEY = 'rgs_pin_hash';
@@ -601,9 +841,9 @@ async function finishSetup() {
       if (confirm('Enable fingerprint / face unlock?')) await registerBiometric();
     }
   } catch (e) { console.warn('Biometric prompt failed:', e); }
-  showList();
+  unlockAndEnter();
 }
-function skipSetup() { if (confirm('Skip PIN? Your data will not be protected on this device.')) showList(); }
+function skipSetup() { if (confirm('Skip PIN? Your data will not be protected on this device.')) unlockAndEnter(); }
 
 let lockPin = '';
 let pinAttempts = 0;
@@ -676,7 +916,7 @@ async function verifyPin() {
   const hash = await hashPin(entered);
   if (stored && hash === stored) {
     pinAttempts = 0; pinLockUntil = 0;
-    updateDots('lockPinDisplay', ''); showList();
+    updateDots('lockPinDisplay', ''); unlockAndEnter();
   } else {
     pinAttempts++;
     if (pinAttempts >= 5) { startPinLockout(); showPinLockMsg(); }
@@ -717,7 +957,7 @@ async function tryBiometric() {
     const assertion = await navigator.credentials.get({
       publicKey: { challenge, allowCredentials: [{ id: idBytes, type: 'public-key' }], timeout: 60000, userVerification: 'required' }
     });
-    if (assertion) { lockPin = ''; pinAttempts = 0; pinLockUntil = 0; showList(); }
+    if (assertion) { lockPin = ''; pinAttempts = 0; pinLockUntil = 0; unlockAndEnter(); }
   } catch (e) { document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.'; }
 }
 
@@ -826,8 +1066,9 @@ function normalizeSupBills(arr) {
   }).filter(Boolean);
 }
 
-function loadBills() { return normalizeBills(readJSON('rgs_bills')); }
-function loadSupBills() { return normalizeSupBills(readJSON('rgs_suppliers')); }
+// Account-scoped keys — activeDataUid ke bina kisi aur account ka data kabhi na padhe/jaaye
+function loadBills() { return activeDataUid ? normalizeBills(readJSON(acctKey('rgs_bills'))) : []; }
+function loadSupBills() { return activeDataUid ? normalizeSupBills(readJSON(acctKey('rgs_suppliers'))) : []; }
 function normalizeOpenings(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
   // Values sanitize: sirf non-negative finite numbers (string/negative imported values ke liye)
@@ -836,13 +1077,15 @@ function normalizeOpenings(v) {
   return out;
 }
 function loadOpenings() {
-  try { return normalizeOpenings(JSON.parse(localStorage.getItem('rgs_supplier_openings') || '{}')); }
+  if (!activeDataUid) return {};
+  try { return normalizeOpenings(JSON.parse(localStorage.getItem(acctKey('rgs_supplier_openings')) || '{}')); }
   catch { return {}; }
 }
 
-let bills = loadBills();
-let supBills = loadSupBills();
-let supplierOpenings = loadOpenings();
+// Data tabhi load hota hai jab koi logged-in account ho (see onAuthUser → loadLocalAccountData)
+let bills = [];
+let supBills = [];
+let supplierOpenings = [];
 
 let currentBillId = null, currentSupId = null;
 let editingId = null, editingSupId = null;
@@ -859,9 +1102,24 @@ function flushPhotoDeletes() {
   list.forEach(deleteRemotePhoto);
 }
 
-function saveToStorage() { const ok = safeSet('rgs_bills', bills); if (ok) scheduleAutoSync(); return ok; }
-function supSave() { const ok = safeSet('rgs_suppliers', supBills); if (ok) scheduleAutoSync(); return ok; }
-function saveOpenings() { const ok = safeSet('rgs_supplier_openings', supplierOpenings); if (ok) scheduleAutoSync(); return ok; }
+function saveToStorage() {
+  if (!activeDataUid) return false;
+  const ok = safeSet(acctKey('rgs_bills'), bills);
+  if (ok) { markLocalSaved(); scheduleAutoSync(); }
+  return ok;
+}
+function supSave() {
+  if (!activeDataUid) return false;
+  const ok = safeSet(acctKey('rgs_suppliers'), supBills);
+  if (ok) { markLocalSaved(); scheduleAutoSync(); }
+  return ok;
+}
+function saveOpenings() {
+  if (!activeDataUid) return false;
+  const ok = safeSet(acctKey('rgs_supplier_openings'), supplierOpenings);
+  if (ok) { markLocalSaved(); scheduleAutoSync(); }
+  return ok;
+}
 function getBill() { return bills.find(b => b.id === currentBillId) || null; }
 function getSup() { return supBills.find(b => b.id === currentSupId) || null; }
 function screenVisible(id) {
@@ -870,18 +1128,20 @@ function screenVisible(id) {
 }
 
 window.addEventListener('storage', (e) => {
+  if (!activeDataUid) return;   // koi account load nahi hai (login screen) — kuch mat badlo
+  const kb = acctKey('rgs_bills'), ks = acctKey('rgs_suppliers'), ko = acctKey('rgs_supplier_openings');
   // e.key === null ka matlab storage.clear() hua hai
-  if (e.key === null || e.key === 'rgs_bills') {
+  if (e.key === null || e.key === kb) {
     bills = loadBills();
     if (screenVisible('listScreen')) renderList();
     else if (screenVisible('detailScreen')) { if (getBill()) renderDetail(); else showList(); }
   }
-  if (e.key === null || e.key === 'rgs_suppliers') {
+  if (e.key === null || e.key === ks) {
     supBills = loadSupBills();
     if (screenVisible('supListScreen')) renderSupplierList();
     else if (screenVisible('supDetailScreen')) { if (getSup()) renderSupDetail(); else showSupplierList(); }
   }
-  if (e.key === null || e.key === 'rgs_supplier_openings') {
+  if (e.key === null || e.key === ko) {
     supplierOpenings = loadOpenings();
     if (screenVisible('openingsScreen')) renderOpenings();
     else if (screenVisible('supListScreen')) renderSupplierList();
@@ -889,7 +1149,7 @@ window.addEventListener('storage', (e) => {
 });
 
 /* ============ SCREEN NAV ============ */
-const ALL_SCREENS = ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen','openingsScreen'];
+const ALL_SCREENS = ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen','openingsScreen','accountsScreen'];
 function showScreen(screen) {
   // Form chhodne par queued photo deletes cancel — save nahi hua to file delete nahi honi chahiye
   if (screen !== 'formScreen' && screen !== 'supFormScreen') pendingPhotoDeletes = [];
@@ -1005,28 +1265,24 @@ function calcTotal() {
   const pending = Math.max(total - editExistingPaid - paid, 0);
   document.getElementById('f-pending').textContent = formatMoney(pending);
 }
-// Bill photos collect + (agar login hai) Storage me upload.
-// Returns: null = user ne cancel kiya (save abort), warna { photos, failed, cancelled, uploaded }
-// Note: jo nayi photos upload/skip hui unka hisaab `failed` me jata hai — warna user ko
-// pata hi nahi chalta ki uski photo save hui ya nahi.
+// Bill photos collect + HAMESHA Cloudinary par upload (koi fallback nahi).
+// Returns: null = upload nahi ho paya / user ne cancel kiya (save abort),
+// warna { photos, failed, cancelled, uploaded, failReason }
 async function collectPhotos(rowSelector) {
   const raw = [];
   document.querySelectorAll(rowSelector + ' .photo-thumb').forEach(t => {
     if (t.dataset && t.dataset.src) raw.push(t.dataset.src);
   });
   const hasNew = raw.some(isDataUrl);
-  const cloudOn = isCloudinaryOn();
-  const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
-  // Cloudinary set hai to login ki zaroorat nahi — warna purana Firebase path
-  const canUpload = cloudOn || isLoggedIn;
 
   if (!hasNew) return { photos: raw, failed: 0, cancelled: false, uploaded: [], failReason: '' };
 
-  if (!canUpload) {
-    if (!confirm('Photo upload ke liye Cloudinary setup ya Firebase login zaroori hai. Bina upload ke nayi photos save nahi hongi (purani photos waisi hi rahengi). Continue?')) return null;
-    const kept = raw.filter(s => !isDataUrl(s));
-    return { photos: kept, failed: raw.length - kept.length, cancelled: false, uploaded: [],
-             failReason: 'Photo upload set nahi hai — Settings → Cloudinary configure karo, ya Cloud Backup me Sign In karo.' };
+  // Cloudinary sign-in nahi hai to upload FAIL — chup-chaap doosre storage par mat bhejo
+  if (!isCloudinaryOn()) {
+    const reason = cloudinaryNotSignedInReason();
+    alert('❌ Photo upload fail.\n\n' + reason +
+          '\n\nBina Cloudinary sign-in ke koi bhi photo save nahi hogi (Firebase Storage fallback nahi hai).');
+    return null;
   }
 
   const out = [];
@@ -1035,7 +1291,7 @@ async function collectPhotos(rowSelector) {
   let failReason = '';
   // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
   // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
-  showLoading(cloudOn ? 'Cloudinary par photos upload ho rahi hain...' : 'Photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
+  showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
   try {
     for (const p of raw) {
       if (isDataUrl(p)) {
@@ -1661,29 +1917,68 @@ function compressImage(dataUrl, maxDim, quality) {
 }
 
 /* ============ CLOUDINARY (photo storage) ============ */
-// Firebase Storage ki jagah Cloudinary par photo upload.
-// Config isi device ke localStorage me rehti hai — backup export me nahi jaati.
+// Photo upload HAMESHA Cloudinary par hota hai (Firebase Storage fallback bilkul nahi).
+// Config account-specific hai: localStorage me activeDataUid ke saath, aur cloud backup
+// (stores/{uid}.cloudinary) ke saath — doosra account aapki config nahi dekh/pata sakta.
 const CLOUDINARY_KEY = 'rgs_cloudinary';
 
+// Account ka Cloudinary state (memory). Naye account me loadLocalAccountData() ise
+// null karke us account ki apni config load karwata hai.
+let cloudinaryCfg = null;
+let clFieldsOpen = false;   // Sign In dabane tak config fields band rehte hain
+
+function normalizeCloudinary(c) {
+  if (!c || typeof c !== 'object') return null;
+  return {
+    cloudName: String(c.cloudName || '').trim(),
+    uploadPreset: String(c.uploadPreset || '').trim(),
+    folder: String(c.folder || '').replace(/^\/+|\/+$/g, ''),
+    apiKey: String(c.apiKey || '').trim(),
+    apiSecret: String(c.apiSecret || '').trim(),
+    enabled: c.enabled !== false,
+    signedIn: c.signedIn === true
+  };
+}
+
 function loadCloudinaryCfg() {
+  if (cloudinaryCfg) return cloudinaryCfg;
+  if (!activeDataUid) return null;
   try {
-    const raw = localStorage.getItem(CLOUDINARY_KEY);
+    const raw = localStorage.getItem(acctKey(CLOUDINARY_KEY));
     if (!raw) return null;
-    const c = JSON.parse(raw);
-    if (!c || typeof c !== 'object') return null;
-    return {
-      cloudName: String(c.cloudName || '').trim(),
-      uploadPreset: String(c.uploadPreset || '').trim(),
-      folder: String(c.folder || '').replace(/^\/+|\/+$/g, ''),
-      apiKey: String(c.apiKey || '').trim(),
-      apiSecret: String(c.apiSecret || '').trim(),
-      enabled: c.enabled !== false
-    };
+    cloudinaryCfg = normalizeCloudinary(JSON.parse(raw));
+    return cloudinaryCfg;
   } catch (e) { return null; }
+}
+function writeCloudinaryCfg(cfg) {
+  cloudinaryCfg = normalizeCloudinary(cfg);
+  if (!activeDataUid) return false;
+  try {
+    if (cloudinaryCfg) localStorage.setItem(acctKey(CLOUDINARY_KEY), JSON.stringify(cloudinaryCfg));
+    else localStorage.removeItem(acctKey(CLOUDINARY_KEY));
+    scheduleAutoSync();   // doosre device par bhi wahi config aa jaye
+    return true;
+  } catch (e) { return false; }
+}
+// Sign-in = config saved + signedIn flag. Sirf yahi hone par upload chalta hai.
+function isCloudinarySignedIn() {
+  const c = loadCloudinaryCfg();
+  return !!(c && c.signedIn && c.cloudName && c.uploadPreset);
 }
 function isCloudinaryOn() {
   const c = loadCloudinaryCfg();
-  return !!(c && c.enabled && c.cloudName && c.uploadPreset);
+  return !!(isCloudinarySignedIn() && c.enabled !== false);
+}
+// Har upload-failure path isi message ko dikhata hai — user ko pata chale ki kya karna hai
+function cloudinaryNotSignedInReason() {
+  const c = loadCloudinaryCfg();
+  if (!c || !c.cloudName || !c.uploadPreset) {
+    return 'Cloudinary sign-in nahi hai — Settings → Cloudinary → "Sign In to Cloudinary" daba kar Cloud Name aur Upload Preset save karo.';
+  }
+  if (c.signedIn !== true) {
+    return 'Cloudinary sign out hai — photo upload se pehle Settings → Cloudinary me dobara Sign In karo (config already saved hai).';
+  }
+  return 'Cloudinary uploads Enable nahi hain — Settings → Cloudinary me "Enable" tick karke Save dabao.';
 }
 function isCloudinaryUrl(url) {
   return typeof url === 'string' && url.indexOf('res.cloudinary.com/') !== -1;
@@ -1729,12 +2024,13 @@ function cloudinaryUploadError(status, data) {
   return 'Cloudinary: upload fail (HTTP ' + status + ').';
 }
 
-// Unsigned preset wala direct browser upload
+// Unsigned preset wala direct browser upload — sirf signed-in account ke liye
 async function uploadToCloudinary(payload) {
   const cfg = loadCloudinaryCfg();
   if (!cfg || !cfg.cloudName || !cfg.uploadPreset) {
     throw new Error('Cloudinary: Cloud Name ya Upload Preset missing (Settings → Cloudinary)');
   }
+  if (!isCloudinaryOn()) throw new Error(cloudinaryNotSignedInReason());
   const fd = new FormData();
   fd.append('file', payload);                 // data-URL seedha chalta hai
   fd.append('upload_preset', cfg.uploadPreset);
@@ -1781,39 +2077,11 @@ async function deleteCloudinaryPhoto(url) {
   } catch (e) { console.warn('Cloudinary delete skipped:', e && e.message); return false; }
 }
 
+// Photo upload → SIRF Cloudinary. Sign-in nahi to seedha error (fallback bilkul nahi).
 async function uploadPhoto(dataUrl) {
+  if (!isCloudinaryOn()) throw new Error(cloudinaryNotSignedInReason());
   const payload = await compressImage(dataUrl);
-
-  // Cloudinary configured hai to wahan — Firebase login ki zaroorat nahi
-  if (isCloudinaryOn()) return uploadToCloudinary(payload);
-
-  if (!fbStorage) {
-    throw new Error('Cloud Storage init nahi hua — Settings → Cloudinary set karo, ya Firebase Console → Storage → Get Started chalao');
-  }
-  if (!fbAuth || !fbAuth.currentUser) {
-    throw new Error('Login nahi hai — photo upload ke liye Sign In zaroori hai');
-  }
-  const ownerUid = fbAuth.currentUser.uid;   // uid() function ka shadow na bane
-  const ref = fbStorage.ref('photos/' + ownerUid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
-
-  // Upload with 30 sec timeout
-  const uploadTask = ref.putString(payload, 'data_url');
-  let timer = null;
-  const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      // Timeout par upload ko band karo warna background me chalta rahega
-      try { if (uploadTask && typeof uploadTask.cancel === 'function') uploadTask.cancel(); } catch (e) {}
-      reject(new Error('Upload timeout (30 second)'));
-    }, 30000);
-  });
-
-  try {
-    await Promise.race([uploadTask, timeoutPromise]);
-  } finally {
-    clearTimeout(timer);   // warna baad me unhandled rejection aati hai
-  }
-  // getDownloadURL bhi atak sakta hai — wahan koi timeout nahi tha
-  return await withTimeout(ref.getDownloadURL(), 30000, 'URL fetch timeout (30 second)');
+  return uploadToCloudinary(payload);
 }
 
 // Kisi bhi promise par simple timeout lagao
@@ -1823,20 +2091,18 @@ function withTimeout(promise, ms, msg) {
   return Promise.race([promise, timeout]).finally(() => { clearTimeout(timer); });
 }
 
-// Photo delete — best effort (Cloudinary dono tarah handle karta hai).
-// Rules allow na karein, creds na ho ya file pehle se gayab ho, to sirf warn karo —
-// app crash nahi hona chahiye.
+// Photo delete — best effort (sirf Cloudinary).
+// Creds na ho ya file pehle se gayab ho, to sirf warn karo — app crash nahi hona chahiye.
 function deleteRemotePhoto(url) {
   try {
     if (typeof url !== 'string' || !url.startsWith('http')) return;
-    if (isCloudinaryUrl(url)) {
-      const t = deleteCloudinaryPhoto(url);   // async — fire & forget
-      if (t && typeof t.catch === 'function') t.catch(e => console.warn('Photo delete skipped:', e && e.message));
+    if (!isCloudinaryUrl(url)) {
+      // Firebase Storage fallback nahi hai — purani (non-Cloudinary) photo hai
+      console.warn('Photo delete skipped (Cloudinary URL nahi hai):', url);
       return;
     }
-    if (!fbStorage) return;
-    const task = fbStorage.refFromURL(url).delete();
-    if (task && typeof task.catch === 'function') task.catch(e => console.warn('Photo delete skipped:', e && e.message));
+    const t = deleteCloudinaryPhoto(url);   // async — fire & forget
+    if (t && typeof t.catch === 'function') t.catch(e => console.warn('Photo delete skipped:', e && e.message));
   } catch (e) { console.warn('Photo delete skipped:', e && e.message); }
 }
 
@@ -2035,6 +2301,12 @@ function shareSupWhatsApp() {
 let currentBillPhotoRow = null;
 
 function attachBillPhoto(type, mode) {
+  // Photo = Cloudinary upload. Sign-in nahi hai to abhi ruk jao (clear error).
+  if (!isCloudinaryOn()) {
+    alert('❌ Photo add nahi hui.\n\n' + cloudinaryNotSignedInReason() +
+          '\n\nPehle Settings → Cloudinary → Sign In dabao aur Cloud Name + Upload Preset save karo.');
+    return;
+  }
   const rowId = type === 'customer' ? 'customerPhotoRow' : 'supplierPhotoRow';
   const row = document.getElementById(rowId);
   if (!row) return;
@@ -2291,28 +2563,67 @@ function viewerNav(d) {
 })();
 
 /* ============ SETTINGS ============ */
-function openSettings() { updateSettingsUI(); fillCloudinaryForm(); showScreen('settingsScreen'); }
+function openSettings() { refreshChrome(); updateSettingsUI(); fillCloudinaryForm(); showScreen('settingsScreen'); }
+
+// Admin UI (Accounts button/card/banner) — role Firestore se aata hai, client se nahi
+function refreshChrome() {
+  const ab = document.getElementById('accountsBtn');
+  if (ab) ab.classList.toggle('hidden', !isAdmin());
+  const ac = document.getElementById('adminCard');
+  if (ac) ac.classList.toggle('hidden', !isAdmin());
+  const rc = document.getElementById('accountRole');
+  if (rc) rc.textContent = isAdmin() ? 'Admin 👑' : 'User';
+  const aac = document.getElementById('adminAccountCount');
+  if (aac && typeof profilesCache !== 'undefined' && profilesCache.length) aac.textContent = profilesCache.length;
+  updateAdminBanner();
+  if (screenVisible('settingsScreen')) updateSettingsUI();
+}
+
+// Admin kisi doosre account me hai to hamesha banner dikhe — confusion nahi honi chahiye
+function updateAdminBanner() {
+  const el = document.getElementById('adminBanner');
+  if (!el) return;
+  const txt = document.getElementById('adminBannerText');
+  if (adminViewing && activeDataUid) {
+    el.classList.remove('hidden');
+    txt.innerHTML = '👑 <b>ADMIN</b> — viewing <b>' +
+      escapeHtml(impersonatedEmail || impersonatedUid || activeDataUid) +
+      '</b> (ye user ka data hai; aapka apna data alag hai)';
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
 function updateSettingsUI() {
   document.getElementById('pinStatus').innerHTML = hasPIN() ? '<span class="status-dot on"></span>Set' : '<span class="status-dot off"></span>Not set';
   document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred() ? '<span class="status-dot on"></span>Enabled' : '<span class="status-dot off"></span>Off';
-  // onclick yahan override NAHI karte — HTML ka handleCloud() hi chalta hai
-  if (firebaseReady && fbAuth) {
-    const u = fbAuth.currentUser;
-    document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
-    document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
-    document.getElementById('syncBtn').classList.toggle('hidden', !u);
-    const rb = document.getElementById('restoreBtn');
-    if (rb) rb.classList.toggle('hidden', !u);
-  } else {
-    document.getElementById('cloudStatus').textContent = 'Not configured';
-    document.getElementById('cloudBtn').textContent = 'Setup Required';
-  }
-  const ls = localStorage.getItem('rgs_last_sync');
+
+  const u = (firebaseReady && fbAuth) ? fbAuth.currentUser : null;
+  const cs = document.getElementById('cloudStatus');
+  if (adminViewing) cs.textContent = (impersonatedEmail || impersonatedUid || activeDataUid) + ' — Admin viewing';
+  else if (u) cs.textContent = u.email || u.uid;
+  else if (firebaseReady) cs.textContent = 'Not signed in';
+  else cs.textContent = 'Not configured';
+
+  const cb = document.getElementById('cloudBtn');
+  if (cb) cb.textContent = u ? (adminViewing ? 'Sign Out (Admin)' : 'Sign Out') : 'Sign In';
+  document.getElementById('syncBtn').classList.toggle('hidden', !u);
+  const rb = document.getElementById('restoreBtn');
+  if (rb) rb.classList.toggle('hidden', !u);
+
+  const ar = document.getElementById('accountRole');
+  if (ar) ar.textContent = isAdmin() ? 'Admin 👑' : 'User';
+  const rs = document.getElementById('adminRoleStatus');
+  if (rs) rs.textContent = isAdmin() ? '✅ Admin' : '❌ Normal user';
+  const mu = document.getElementById('myUid');
+  if (mu) mu.textContent = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '—';
+
+  const ls = localStorage.getItem(acctKey('rgs_last_sync'));
   document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
   // Auto-sync chup-chaap fail hoti rahi — user ko pata hi nahi chalta tha
   const errEl = document.getElementById('syncErr');
   if (errEl) {
-    const err = localStorage.getItem('rgs_sync_err') || '';
+    const err = localStorage.getItem(acctKey('rgs_sync_err')) || '';
     errEl.textContent = err || 'OK';
     errEl.style.color = err ? '#dc3545' : '#28a745';
   }
@@ -2321,9 +2632,23 @@ function updateSettingsUI() {
 }
 function setSyncError(msg) {
   try {
-    if (msg) localStorage.setItem('rgs_sync_err', String(msg));
-    else localStorage.removeItem('rgs_sync_err');
+    if (!activeDataUid) return;
+    if (msg) localStorage.setItem(acctKey('rgs_sync_err'), String(msg));
+    else localStorage.removeItem(acctKey('rgs_sync_err'));
   } catch (e) { /* storage blocked */ }
+}
+function copyMyUid() {
+  const u = fbAuth && fbAuth.currentUser;
+  if (!u) { alert('Sign in nahi hai.'); return; }
+  try {
+    navigator.clipboard.writeText(u.uid).then(() => alert('✅ UID copy ho gaya:\n' + u.uid),
+      () => alert('UID: ' + u.uid));
+  } catch (e) { alert('UID: ' + u.uid); }
+}
+async function refreshAdminStatus() {
+  const ok = await fetchAdminFlag(true);   // fail hone par wahi alert fetchAdminFlag khud dikhata hai
+  if (ok) alert('✅ Aap Admin ho — Accounts section ab home screen par dikhne lagega.');
+  updateSettingsUI();
 }
 
 /* ============ CLOUDINARY SETTINGS (form + status) ============ */
@@ -2338,18 +2663,76 @@ function fillCloudinaryForm() {
   setVal('clApiKey', c.apiKey || '');
   setVal('clApiSecret', c.apiSecret || '');
   const cb = document.getElementById('clEnabled');
-  if (cb) cb.checked = !!(c.cloudName && c.uploadPreset && c.enabled !== false);
+  if (cb) cb.checked = !!(c.cloudName && c.uploadPreset && c.enabled !== false && c.signedIn !== false);
+  // Sign-in hone par fields band the — wapas bharna na pade isliye abhi khol do
+  if (isCloudinarySignedIn()) {
+    clFieldsOpen = true;
+    const f = document.getElementById('clFields');
+    if (f) f.classList.remove('hidden');
+  }
   updateCloudinaryStatus();
 }
 
-function updateCloudinaryStatus() {
-  const el = document.getElementById('clStatus');
-  if (!el) return;
+// Sign In button dabane par hi config fields khulti hain (signed-out state me).
+function cloudinarySignIn() {
+  fillCloudinaryForm();
+  clFieldsOpen = true;
   const c = loadCloudinaryCfg();
-  if (!c || !c.cloudName || !c.uploadPreset) { el.textContent = 'Not configured'; el.style.color = '#dc3545'; return; }
-  if (!c.enabled) { el.textContent = 'Saved — OFF'; el.style.color = '#888'; return; }
-  el.textContent = '✅ ' + c.cloudName + (c.folder ? '/' + c.folder : '');
-  el.style.color = '#28a745';
+  const cb = document.getElementById('clEnabled');
+  // User ne sign in dabaya hai → Enable tick karke rakho, Save karte hi sign-in ho jayega
+  if (cb && c && c.cloudName && c.uploadPreset) cb.checked = true;
+  const hint = document.getElementById('clSignInHint');
+  if (hint && c && c.cloudName) {
+    hint.textContent = 'Saved config mil gaya — Save dabate hi sign-in ho jayega (chahein to fields badal sakte ho).';
+  }
+  cloudMsg('', false);
+  updateCloudinaryStatus();
+  const f = document.getElementById('clCloudName');
+  if (f) setTimeout(() => { try { f.focus(); } catch (e) {} }, 60);
+}
+
+// Sign Out → photo upload turant band (config yaad rehti hai, isliye wapas sign-in aasan)
+function cloudinarySignOut() {
+  const c = loadCloudinaryCfg();
+  if (!c) { clFieldsOpen = false; updateCloudinaryStatus(); return; }
+  if (!confirm('Cloudinary se sign out karein?\n\nPhoto upload turant band ho jayega — jab tak dobara Sign In + Save na karo, koi photo upload nahi hogi (fallback nahi hai). Config saved rahegi.')) return;
+  writeCloudinaryCfg(Object.assign({}, c, { signedIn: false }));
+  clFieldsOpen = false;
+  cloudMsg('🚪 Signed out of Cloudinary — photo upload ab band hai.', false);
+  updateCloudinaryStatus();
+  updateSettingsUI();
+}
+
+function updateCloudinaryStatus() {
+  const row = document.getElementById('clStatusRow');
+  const btn = document.getElementById('clSignInBtn');
+  const hint = document.getElementById('clSignInHint');
+  const fields = document.getElementById('clFields');
+  if (!row || !btn || !hint || !fields) return;
+  const c = loadCloudinaryCfg();
+  const signedIn = isCloudinarySignedIn();
+
+  if (signedIn) {
+    clFieldsOpen = true;
+    row.classList.remove('hidden');
+    btn.classList.add('hidden');
+    hint.classList.add('hidden');
+    fields.classList.remove('hidden');
+    const el = document.getElementById('clStatus');
+    el.textContent = '✅ Signed in — ' + c.cloudName + (c.folder ? '/' + c.folder : '') +
+                     (c.enabled === false ? ' (uploads OFF)' : '');
+    el.style.color = c.enabled === false ? '#f9ab00' : '#28a745';
+    return;
+  }
+
+  // Signed out → sirf Sign In button (config fields bilkul band)
+  row.classList.add('hidden');
+  btn.classList.remove('hidden');
+  hint.classList.remove('hidden');
+  hint.textContent = (c && c.cloudName)
+    ? 'Sign out — photo upload band hai. Config saved hai: Sign In dabao, phir Save karo, wapas chalu ho jayega.'
+    : 'Photo upload se pehle Cloudinary me sign in karna zaroori hai. Sign In dabaate hi Cloud Name / Upload Preset wali fields khul jayengi — details bhar kar Save karo.';
+  fields.classList.toggle('hidden', !clFieldsOpen);
 }
 
 function cloudMsg(text, isErr) {
@@ -2368,25 +2751,30 @@ function saveCloudinaryCfg() {
   const enabledEl = document.getElementById('clEnabled');
   const enabled = !!(enabledEl && enabledEl.checked);
 
-  if (enabled && !cloudName) { cloudMsg('Cloud Name bharo.', true); return; }
-  if (enabled && !uploadPreset) { cloudMsg('Upload Preset bharo (unsigned preset).', true); return; }
-  if (cloudName && !/^[a-z0-9._-]+$/.test(cloudName)) {
+  if (!cloudName) { cloudMsg('Cloud Name bharo.', true); return; }
+  if (!uploadPreset) { cloudMsg('Upload Preset bharo (unsigned preset).', true); return; }
+  if (!/^[a-z0-9._-]+$/.test(cloudName)) {
     cloudMsg('Cloud Name me sirf a-z, 0-9, dot, dash aur underscore aata hai.', true); return;
   }
-  try {
-    localStorage.setItem(CLOUDINARY_KEY, JSON.stringify({ cloudName, uploadPreset, folder, apiKey, apiSecret, enabled }));
-  } catch (e) { cloudMsg('Save nahi hua — browser storage blocked hai.', true); return; }
-  cloudMsg(enabled ? '✅ Saved — nayi photos ab Cloudinary par jayengi.'
-                   : '✅ Saved, lekin upload OFF hai (Enable tick karke dobara save karo).', false);
+  // Save = config is account ki ho jati hai + Enable tick hone par sign-in bhi
+  const cfg = { cloudName, uploadPreset, folder, apiKey, apiSecret, enabled, signedIn: enabled };
+  if (!writeCloudinaryCfg(cfg)) { cloudMsg('Save nahi hua — browser storage blocked hai.', true); return; }
+  clFieldsOpen = true;
+  if (enabled) {
+    cloudMsg('✅ Signed in — ab is account ki nayi photos Cloudinary par jayengi.', false);
+  } else {
+    cloudMsg('✅ Config save ho gaya, lekin Enable tick nahi hai — sign in nahi hua, photo upload band rahega.', true);
+  }
   updateCloudinaryStatus();
 }
 
 function clearCloudinaryCfg() {
-  if (!confirm('Cloudinary config is device se hata dein?\nUpload wapas Firebase Storage par chalega.')) return;
-  try { localStorage.removeItem(CLOUDINARY_KEY); } catch (e) {}
+  if (!confirm('Cloudinary config is account se hata dein?\n\nPhoto upload tab tak band rahega jab tak dobara Sign In + Save na karo.')) return;
+  writeCloudinaryCfg(null);
   ['clCloudName', 'clPreset', 'clFolder', 'clApiKey', 'clApiSecret'].forEach(id => setVal(id, ''));
   const cb = document.getElementById('clEnabled'); if (cb) cb.checked = false;
-  cloudMsg('Config hata diya gaya.', false);
+  clFieldsOpen = false;
+  cloudMsg('Config hata diya gaya — photo upload ke liye dobara Sign In karna hoga.', false);
   updateCloudinaryStatus();
 }
 
@@ -2456,11 +2844,18 @@ async function cloudinaryCheckLines() {
   const lines = [];
   const cfg = loadCloudinaryCfg();
   if (!cfg || !cfg.cloudName || !cfg.uploadPreset) {
-    lines.push('ℹ️ Cloudinary set nahi hai — photos Firebase Storage par jayengi.');
+    lines.push(N + 'Cloudinary sign-in nahi hai — photo upload FAIL hoga (fallback nahi hai).');
+    lines.push('   Fix: Settings → Cloudinary → "Sign In to Cloudinary" → Cloud Name + Preset → Save.');
     return lines;
   }
-  if (!cfg.enabled) {
-    lines.push(W + 'Cloudinary saved par OFF hai — upload abhi bhi Firebase Storage par hoga.');
+  if (!isCloudinarySignedIn()) {
+    lines.push(N + 'Cloudinary sign out hai — photo upload FAIL hoga.');
+    lines.push('   Fix: Settings → Cloudinary → Sign In → Save dabao.');
+    return lines;
+  }
+  if (cfg.enabled === false) {
+    lines.push(N + 'Cloudinary sign-in hai par Enable OFF hai — photo upload FAIL hoga.');
+    lines.push('   Fix: Settings → Cloudinary → Enable tick karke Save dabao.');
     return lines;
   }
   try {
@@ -2482,56 +2877,46 @@ async function runCloudCheck() {
   const Y = '✅ ', N = '❌ ', W = '⚠️ ';
   const lines = [];
   const step = (t) => { lines.push(t); };
-  const clOn = isCloudinaryOn();
   if (!firebaseReady) { alert('Cloud check:\n\n' + N + 'Firebase configured nahi hai.'); return; }
-  step(Y + 'Firebase loaded — project: ' + firebaseConfig.projectId + ', bucket: ' + (firebaseConfig.storageBucket || '—'));
+  step(Y + 'Firebase loaded — project: ' + firebaseConfig.projectId);
   if (!fbAuth || !fbAuth.currentUser) {
-    // Cloudinary login ke bina bhi photo upload kar deta hai — dono ka alag hisaab
-    const clLines = await cloudinaryCheckLines();
-    clLines.forEach(step);
-    const photoOk = clLines.some(l => l.indexOf('Cloudinary UPLOAD OK') !== -1);
-    step('');
-    if (photoOk) {
-      step(Y + 'Photo upload: Cloudinary se chalega (login ki zaroorat nahi).');
-      step('Firestore backup ke liye "Sign In" karo, phir yeh check dobara chalao.');
-    } else {
-      step(N + 'Sign in nahi hai — Firestore backup nahi chalega.');
-      step('Photo ke liye Settings → Cloudinary setup karo, ya "Sign In" dabao.');
-    }
+    step(N + 'Sign in nahi hai — pehle apne account me login karo.');
+    (await cloudinaryCheckLines()).forEach(step);
     alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
-    updateSettingsUI();
     return;
   }
   const user = fbAuth.currentUser;
   step(Y + 'Signed in: ' + (user.email || user.uid));
+  step('Account data path: stores/' + (activeDataUid || user.uid) + (adminViewing ? '  (Admin kisi user ke account me hai)' : ''));
 
   try {
     await withTimeout(user.getIdToken(), 20000, 'Auth token timeout');
     step(Y + 'Login token valid hai');
   } catch (e) { step(N + 'Login token fail: ' + cloudErrorText(e)); }
 
+  // Profile doc — isi se Admin ko accounts list milti hai
+  const profOk = await ensureProfile();
+  if (profOk) step(Y + 'Profile save OK  (profiles/' + user.uid + ')');
+  else step(N + 'Profile save fail (Accounts list ke liye profiles rule chahiye): permission-denied?');
+
   let firestoreOk = false;
   try {
-    await withTimeout(fbDb.collection('stores').doc(user.uid).get(), 25000, 'Firestore read timeout');
+    await withTimeout(fbDb.collection('stores').doc(activeDataUid || user.uid).get(), 25000, 'Firestore read timeout');
     firestoreOk = true;
-    step(Y + 'Firestore READ OK  (path: stores/' + user.uid + ')');
+    step(Y + 'Firestore READ OK  (path: stores/' + (activeDataUid || user.uid) + ')');
   } catch (e) {
     step(N + 'Firestore READ fail: ' + cloudErrorText(e));
   }
 
-  if (!fbStorage) {
-    step(clOn ? W + 'Cloud Storage SDK init nahi hua (Cloudinary chalu — photo upload par farak nahi padta).'
-              : N + 'Cloud Storage SDK init nahi hua — isi wajah se photos save nahi hoti.');
-  } else {
+  // Role / Admin access — rules publish hone ke baad hi chalta hai
+  const isAdminNow = await fetchAdminFlag(false);
+  step(isAdminNow ? Y + 'Role: ADMIN — Accounts section available' : W + 'Role: normal user (Admin nahi)');
+  if (isAdminNow) {
     try {
-      const probe = fbStorage.ref('photos/' + user.uid + '/_cloudcheck.jpg');
-      await withTimeout(probe.putString(CLOUD_PROBE_JPEG, 'data_url'), 45000, 'Storage upload timeout (45s)');
-      step(Y + 'Storage UPLOAD OK  (path: photos/' + user.uid + '/)');
-      try { await withTimeout(probe.delete(), 20000, 'delete timeout'); step(Y + 'Storage DELETE OK'); }
-      catch (de) { step(W + 'Upload ho gaya par delete fail: ' + cloudErrorText(de)); }
+      const snap = await withTimeout(fbDb.collection('profiles').limit(50).get(), 20000, 'Profiles list timeout');
+      step(Y + 'Accounts list OK — ' + snap.size + ' profile(s) milin');
     } catch (e) {
-      step(clOn ? W + 'Storage UPLOAD fail (Cloudinary chalu — photo nahi ruktin): ' + cloudErrorText(e)
-                : N + 'Storage UPLOAD fail: ' + cloudErrorText(e));
+      step(N + 'Accounts list fail (Admin ke liye profiles par list rule chahiye): ' + cloudErrorText(e));
     }
   }
 
@@ -2541,7 +2926,7 @@ async function runCloudCheck() {
   if (firestoreOk) setSyncError('');   // rules ab theek hain → purana stale error hata do
   step('');
   step(failed
-    ? 'Fix: neeche "Permission error" section khol kar rules Console me paste karo, phir yeh check dobara chalao.'
+    ? 'Fix: neeche "Rules" section khol kar rules Console me paste karo, phir yeh check dobara chalao.'
     : 'Sab theek hai. Ab "Sync Now" dabao aur photo wali bill save karke dekho.');
   alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
   updateSettingsUI();
@@ -2566,7 +2951,38 @@ async function toggleBiometric() {
   updateSettingsUI();
 }
 
-/* ============ CLOUD ============ */
+/* ============ AUTH (app ka apna login) ============ */
+// Login screen — back button sirf tab jab session pehle se maujood ho (settings se aaye)
+function showLoginScreen(canGoBack) {
+  const b = document.getElementById('loginBackBtn');
+  if (b) b.classList.toggle('hidden', !canGoBack);
+  const le = document.getElementById('loginErr');
+  if (le) le.textContent = '';
+  const lp = document.getElementById('loginPass');
+  if (lp) lp.value = '';
+  showScreen('loginScreen');
+}
+function loginErr(msg) { const el = document.getElementById('loginErr'); if (el) el.textContent = msg || ''; }
+
+// Firebase auth codes ko aam aadmi samajh sake aise message me badlo
+function friendlyAuthError(e) {
+  const code = (e && e.code) ? String(e.code) : '';
+  const map = {
+    'auth/invalid-email': 'Email address sahi nahi hai.',
+    'auth/user-disabled': 'Yeh account band kar diya gaya hai.',
+    'auth/user-not-found': 'Is email ka account nahi mila — "Create New Account" dabao.',
+    'auth/wrong-password': 'Galat password. Dobara try karo.',
+    'auth/invalid-credential': 'Email ya password galat hai.',
+    'auth/invalid-login-credentials': 'Email ya password galat hai.',
+    'auth/too-many-requests': 'Bahut zyada galtiyan — thodi der baad try karo.',
+    'auth/network-request-failed': 'Internet check karo — server se connect nahi ho raha.',
+    'auth/email-already-in-use': 'Yeh email pehle se registered hai — Sign In dabao.',
+    'auth/weak-password': 'Password kam se kam 6 characters ka rakho.',
+    'auth/operation-not-allowed': 'Firebase Console → Authentication → Sign-in method me "Email/Password" enable karo.'
+  };
+  return map[code] || (e && e.message) || 'Login failed';
+}
+
 // Login/signup ke baad usi screen par wapas jahan se aaye the
 function afterLogin() {
   const target = loginReturnTo;
@@ -2575,23 +2991,23 @@ function afterLogin() {
 }
 function goBackFromLogin() {
   document.getElementById('loginPass').value = '';   // password DOM me na rahe
-  afterLogin();
+  if (fbAuth && fbAuth.currentUser) afterLogin();
+  else loginErr('Pehle sign in karna hoga.');
 }
 
 async function doLogin() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  if (!firebaseReady) { loginErr('Firebase configured nahi hai.'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
-  document.getElementById('loginErr').textContent = '';
-  if (!email || !pass) { document.getElementById('loginErr').textContent = 'Email aur password dono bharein'; return; }
+  loginErr('');
+  if (!email || !pass) { loginErr('Email aur password dono bharein'); return; }
   try {
     await fbAuth.signInWithEmailAndPassword(email, pass);
     document.getElementById('loginPass').value = '';
-    await pullFromCloud();
-    alert('✅ Signed in!');
-    afterLogin();
+    loginErr('Sign in ho gaya — data load ho raha hai...');
+    // Data load + screen change → onAuthUser listener karega (session persistent)
   }
-  catch (e) { document.getElementById('loginErr').textContent = e.message || 'Login failed'; }
+  catch (e) { loginErr(friendlyAuthError(e)); }
 }
 async function doSignup() {
   if (!firebaseReady) { alert('Firebase not configured.'); return; }
@@ -2603,45 +3019,40 @@ async function doSignup() {
   try {
     await fbAuth.createUserWithEmailAndPassword(email, pass);
     document.getElementById('loginPass').value = '';
-    // Agar is account ka cloud data pehle se hai to local se chupke overwrite na ho jaye
-    let hasCloud = false;
-    try {
-      const doc = await fbDb.collection('stores').doc(fbAuth.currentUser.uid).get();
-      hasCloud = doc.exists;
-    } catch (e) { console.warn('Cloud check failed:', e); }
-    if (hasCloud) {
-      const overwrite = confirm('Is account ka cloud data pehle se maujood hai.\nOK = local data cloud par overwrite kar do\nCancel = cloud data is device par le aao');
-      if (overwrite) await pushToCloud(); else await pullFromCloud();
-    } else {
-      await pushToCloud();
-    }
-    alert('✅ Account created!');
-    afterLogin();
+    loginErr('✅ Account created — data load ho raha hai...');
+    // Aage ka (migration → PIN gate → data bootstrap) onAuthUser listener karega
   }
-  catch (e) { document.getElementById('loginErr').textContent = e.message || 'Signup failed'; }
+  catch (e) { document.getElementById('loginErr').textContent = friendlyAuthError(e); }
 }
 async function signOutCloud() {
   if (!firebaseReady) return;
-  if (!confirm('Sign out? Local data will stay.')) return;
-  await fbAuth.signOut(); updateSettingsUI(); alert('Signed out.');
+  if (adminViewing) { alert('Aap kisi user ke account me hain.\nSign out se pehle upar banner ka "Exit Account" dabayein.'); return; }
+  if (!confirm('Sign out karein?\n\nIs account ka data isi device par safe rehta hai, lekin app dobara email + password maangega.')) return;
+  setSyncError('');
+  try { updateSettingsUI(); } catch (e) {}
+  // onAuthUser(null) baaki saaf kar ke login screen dikha dega
+  await fbAuth.signOut();
 }
 function handleCloud() {
   if (!firebaseReady) { alert('Firebase config missing.'); return; }
-  if (fbAuth.currentUser) { signOutCloud(); return; }
+  if (fbAuth && fbAuth.currentUser) { signOutCloud(); return; }
   loginReturnTo = 'settingsScreen';
-  showScreen('loginScreen');
+  showLoginScreen(true);
 }
 async function pushToCloud() {
-  if (!firebaseReady || !fbAuth.currentUser) return false;
-  const userUid = fbAuth.currentUser.uid;
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) return false;
   try {
-    await fbDb.collection('stores').doc(userUid).set({
+    // Hamesha usi account ke doc par — jiska data abhi loaded hai (activeDataUid)
+    await fbDb.collection('stores').doc(activeDataUid).set({
       bills, supBills,
       supplierOpenings,
+      cloudinary: cloudinaryCfg || null,          // config bhi usi account ki (A ki config B ko na mile)
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      email: fbAuth.currentUser.email
+      ownerUid: activeDataUid,                   // rules isi se verify karte hain
+      updatedBy: fbAuth.currentUser.uid,         // Admin edit kare to pata chale
+      email: (adminViewing ? impersonatedEmail : (fbAuth.currentUser.email || ''))
     });
-    localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    try { localStorage.setItem(acctKey('rgs_last_sync'), new Date().toISOString()); } catch (e) {}
     setSyncError('');
     return true;
   } catch (e) {
@@ -2650,29 +3061,29 @@ async function pushToCloud() {
     return false;
   }
 }
-async function pullFromCloud() {
-  if (!firebaseReady || !fbAuth.currentUser) return false;
-  const userUid = fbAuth.currentUser.uid;
+// askFirst !== false hone par (manual restore) dono taraf data ho to poochhta hai
+async function pullFromCloud(askFirst) {
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) return false;
   try {
-    const doc = await fbDb.collection('stores').doc(userUid).get();
+    const doc = await withTimeout(fbDb.collection('stores').doc(activeDataUid).get(), 20000, 'Cloud read timeout');
     if (!doc.exists) return false;
     const d = doc.data() || {};
-    const cloudBills = normalizeBills(d.bills);
-    const cloudSup = normalizeSupBills(d.supBills);
-    const cloudOpenings = normalizeOpenings(d.supplierOpenings);
 
-    const localHasData = bills.length > 0 || supBills.length > 0 || Object.keys(supplierOpenings).length > 0;
-    const cloudHasData = cloudBills.length > 0 || cloudSup.length > 0 || Object.keys(cloudOpenings).length > 0;
-    // Bina poochhe local data delete mat karo
-    if (localHasData && cloudHasData) {
+    // Bina poochhe local data delete mat karo (sirf manual restore par)
+    if (askFirst !== false && hasAnyAccountData()) {
       const take = confirm('Cloud backup aur is device dono me data hai.\nOK = cloud data local par replace kar do\nCancel = local data waisa hi rehne do');
       if (!take) return false;
     }
 
-    bills = cloudBills; supBills = cloudSup; supplierOpenings = cloudOpenings;
-    saveToStorage(); supSave(); saveOpenings();
-    localStorage.setItem('rgs_last_sync', new Date().toISOString());
+    suppressSync = true;
+    applyCloudData(d);
+    suppressSync = false;
+    try { localStorage.setItem(acctKey('rgs_last_sync'), new Date().toISOString()); } catch (e) {}
     setSyncError('');
+    loadCloudinaryCfg();
+    fillCloudinaryForm();
+    if (screenVisible('listScreen')) renderList();
+    if (screenVisible('settingsScreen')) updateSettingsUI();
     return true;
   } catch (e) {
     console.warn('Pull failed:', e);
@@ -2681,26 +3092,213 @@ async function pullFromCloud() {
   }
 }
 async function syncNow() {
-  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
-  if (!confirm('Sync? This will overwrite cloud data with local data.')) return;
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) { alert('Sign in nahi hai — Settings → Account me Sign In karein.'); return; }
+  if (!confirm('Sync? Is device ka data cloud par chala jayega (usi account me).')) return;
   const ok = await pushToCloud();
   if (ok) { alert('✅ Synced.'); updateSettingsUI(); }
-  else alert('❌ Sync failed.\n' + (localStorage.getItem('rgs_sync_err') || ''));
+  else alert('❌ Sync failed.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || ''));
 }
 // Rules theek karne ke baad bina sign-out kiye cloud data dobara mehnga sakta hai
 async function restoreFromCloud() {
-  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
+  if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) { alert('Sign in nahi hai — Settings → Account me Sign In karein.'); return; }
   if (!confirm('Cloud backup is device par le aayein?')) return;
-  const ok = await pullFromCloud();
+  const ok = await pullFromCloud(true);
   if (ok) alert('✅ Cloud data restore ho gaya.');
-  else alert('❌ Restore nahi hua.\n' + (localStorage.getItem('rgs_sync_err') || 'Cloud me koi data nahi mila (ya aapne Cancel dabaya).'));
+  else alert('❌ Restore nahi hua.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || 'Cloud me koi data nahi mila (ya aapne Cancel dabaya).'));
   updateSettingsUI();
 }
 let syncTimer = null;
 function scheduleAutoSync() {
   if (!firebaseReady || !fbAuth || !fbAuth.currentUser) return;
+  if (!activeDataUid || suppressSync) return;    // data load/hone ke waqt chup-chaap push na ho
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => pushToCloud(), 3000);
+}
+
+/* ============ SESSION (auth listener + PIN gate + admin accounts) ============
+   Startup: Firebase session (login) → PIN/Setup gate → data bootstrap → list
+*/
+function onAuthUser(user) {
+  try { hideLoading(); } catch (e) {}
+
+  // Admin kisi user ke account me hai — session tab tak uske control me hai.
+  // Sirf tab jab admin ka apna session khatam ho jaye, tab hi wapas login.
+  if (adminViewing && user) return;
+
+  if (!user) {
+    // Sign out / session khatam — kisi doosre account ka data kabhi na dikhe
+    sessionBooted = false;
+    deviceUnlocked = false;
+    activeDataUid = '';
+    adminFlag = false;
+    adminViewing = false;
+    impersonatedUid = ''; impersonatedEmail = '';
+    suppressSync = true;
+    clearAccountMemory();
+    suppressSync = false;
+    clearTimeout(syncTimer);
+    loginReturnTo = 'listScreen';
+    refreshChrome();
+    showLoginScreen(false);
+    return;
+  }
+
+  const switched = (activeDataUid !== user.uid);
+  activeDataUid = user.uid;
+  if (switched) { sessionBooted = false; deviceUnlocked = false; }   // naya account → dobara lock gate
+
+  if (!sessionBooted) {
+    migrateLegacyData();      // purana single-user data pehle login karne wale account ko
+    loadLocalAccountData();   // usi account ki localStorage data
+  }
+  updateAdminBanner();
+  refreshChrome();
+  gateToDevice();             // PIN/Setup/lock → unlock par unlockAndEnter bootstrap karega
+
+  // Background: profile + role — ye rukawat na dale isliye alag chalate hain
+  (async () => {
+    try { await ensureProfile(); } catch (e) {}
+    if (adminViewing) return;
+    if (fbAuth && fbAuth.currentUser && fbAuth.currentUser.uid === user.uid) await fetchAdminFlag(false);
+  })();
+}
+
+// Login ke baad device gate: pehle Setup/Lock, unlocked ho to seedha andar
+function gateToDevice() {
+  if (deviceUnlocked) { unlockAndEnter(); return; }
+  // Token refresh waghera par gate dobara mat kholo (user already gate par khara hai)
+  if (screenVisible('lockScreen') || screenVisible('setupScreen')) return;
+  if (!hasPIN()) startSetup(); else startLock();
+}
+
+// PIN/Setup/Biometric ke baad — yahin data cloud se taaza hota hai
+let bootPromise = null;
+function unlockAndEnter() {
+  if (!activeDataUid) { showLoginScreen(false); return; }
+  deviceUnlocked = true;
+  if (sessionBooted) { updateAdminBanner(); refreshChrome(); return; }   // pehle se boot — screen mat chedo
+  sessionBooted = true;
+  bootPromise = (async () => {
+    showLoading('Loading your account data...', 25000);
+    try { await bootstrapAccountData(); }
+    catch (e) { console.warn('Bootstrap failed:', e); }
+    hideLoading();
+    refreshChrome();
+    showList();
+  })();
+}
+
+/* ---- Admin: saare accounts dekhna (rules admin ko hi allow karti hain) ---- */
+let profilesCache = [];
+
+async function openAccounts() {
+  if (!isAdmin()) { alert('Yeh section sirf Admin ke liye hai.'); return; }
+  showScreen('accountsScreen');
+  const list = document.getElementById('accountsList');
+  if (list) list.innerHTML = '<div class="card" style="cursor:default">⏳ Accounts list aa rahi hai...</div>';
+  try {
+    const snap = await withTimeout(
+      fbDb.collection('profiles').orderBy('email').limit(500).get(),
+      20000, 'Accounts list timeout');
+    profilesCache = [];
+    snap.forEach(d => {
+      const v = d.data() || {};
+      profilesCache.push({ uid: d.id, email: v.email || '(no email)' });
+    });
+    renderAccounts();
+    const aac = document.getElementById('adminAccountCount');
+    if (aac) aac.textContent = profilesCache.length;
+  } catch (e) {
+    if (list) list.innerHTML = '<div class="card" style="cursor:default;color:#dc3545">❌ Accounts list nahi mili:<br>' +
+      escapeHtml(cloudErrorText(e)) + '<br><br>Firestore rules publish kiye hain? (Settings → Account)</div>';
+  }
+}
+
+function renderAccounts() {
+  const list = document.getElementById('accountsList');
+  if (!list) return;
+  const me = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '';
+  if (!profilesCache.length) { list.innerHTML = '<div class="card" style="cursor:default">Koi account nahi mila (profiles collection khali hai).</div>'; return; }
+  let html = '';
+  profilesCache.forEach((p, i) => {
+    const isMe = p.uid === me;
+    const isOpen = adminViewing && activeDataUid === p.uid;
+    html += '<div class="card" style="cursor:default">' +
+      '<div class="meta" style="margin:0 0 6px"><b>' + escapeHtml(p.email) + '</b>' +
+      (isMe ? ' <span class="role-pill admin">Aapka account</span>' : '') +
+      (isOpen ? ' <span class="role-pill admin">Abhi khula hua</span>' : '') +
+      '<br><span style="font-size:11px;opacity:.7;word-break:break-all">' + escapeHtml(p.uid) + '</span></div>';
+    if (isMe) html += '<div class="meta" style="margin:0">👑 Admin ka apna account — isko khulne ki zaroorat nahi.</div>';
+    else if (isOpen) html += '<button class="btn small" onclick="exitImpersonation()">⬅️ Exit Account (wapas apna data)</button>';
+    else html += '<button class="btn small" onclick="openUserAccount(' + i + ')">📂 Open this account</button>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+// Admin bina password ke user ka account kholti hai (rules admins/{uid} dekh kar allow karti hain)
+async function openUserAccount(idx) {
+  const p = profilesCache[idx];
+  if (!p) return;
+  if (!isAdmin()) { alert('Sirf Admin kisi aur account khul sakta hai.'); return; }
+  const me = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '';
+  if (p.uid === me) { showList(); return; }
+  if (!confirm('Open "' + p.email + '" ka account?\n\nUska poora data (bills, suppliers, photos, Cloudinary) isi app me khulega — upar banner dikhega ki aap kis account me ho. Wapas aane ke liye "Exit Account" dabayein.\n\nAapka apna data us waqt alag rehta hai.')) return;
+
+  // Pehle rules par check — galat role ho to yahin ruk jayega (UI bypass ka koi fayda nahi)
+  try {
+    await withTimeout(fbDb.collection('stores').doc(p.uid).get(), 20000, 'Account read timeout');
+  } catch (e) {
+    alert('❌ Account nahi khula:\n\n' + cloudErrorText(e));
+    return;
+  }
+
+  sessionBooted = false;
+  deviceUnlocked = true;         // Admin already device-unlocked hai
+  adminViewing = true;
+  impersonatedUid = p.uid;
+  impersonatedEmail = p.email;
+  activeDataUid = p.uid;
+  clearTimeout(syncTimer);
+  clearAccountMemory();
+  suppressSync = true;
+  loadLocalAccountData();        // us account ki apni localStorage (A ki config B ko na dikhe)
+  suppressSync = false;
+  updateAdminBanner();
+  refreshChrome();
+
+  showLoading('Loading ' + p.email + ' ...', 25000);
+  try { await bootstrapAccountData(); } catch (e) { console.warn('Admin open failed:', e); }
+  hideLoading();
+  sessionBooted = true;
+  updateAdminBanner();
+  refreshChrome();
+  showList();
+}
+
+function exitImpersonation() {
+  if (!adminViewing) { showList(); return; }
+  if (!confirm('Wapas apne account me jayein?\n\n' + (impersonatedEmail || 'Us account') + ' ka data is screen se hat jayega (uska cloud data safe hai).')) return;
+  adminViewing = false;
+  const me = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '';
+  impersonatedUid = ''; impersonatedEmail = '';
+  sessionBooted = false;
+  activeDataUid = me;
+  clearTimeout(syncTimer);
+  clearAccountMemory();
+  suppressSync = true;
+  if (me) { migrateLegacyData(); loadLocalAccountData(); }
+  suppressSync = false;
+  updateAdminBanner();
+  refreshChrome();
+  if (!me) { showLoginScreen(false); return; }
+  sessionBooted = true;
+  showLoading('Loading your account...', 25000);
+  Promise.resolve(bootstrapAccountData()).catch(e => console.warn(e)).then(() => {
+    hideLoading();
+    refreshChrome();
+    showList();
+  });
 }
 
 /* ============ EXPORT / IMPORT ============ */
@@ -2795,9 +3393,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 
 /* ============ START ============ */
 window.addEventListener('load', () => {
-  if (!hasPIN()) startSetup();
-  else startLock();
-  if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500);
+  try { if (!isStandalone()) setTimeout(() => showInstallBtn(true), 1500); }
+  catch (e) { console.warn('install btn:', e); }   // install hint fail ho to session check na roke
 
   // Version dikhane wali lines
   const vEl = document.getElementById('appVersion');
@@ -2812,6 +3409,15 @@ window.addEventListener('load', () => {
       history.pushState({ appGuard: true }, '');
     }
   } catch(e) {}
+
+  // 1) Firebase session (login) → 2) PIN/Setup gate → 3) data bootstrap → 4) list
+  if (firebaseReady && fbAuth) {
+    showLoading('Checking your session...', 20000);
+    fbAuth.onAuthStateChanged((user) => { try { hideLoading(); } catch (e) {} onAuthUser(user); });
+  } else {
+    showLoginScreen(false);
+    loginErr('Firebase configured nahi hai — index.html me apna firebaseConfig bharo.');
+  }
 });
 
 window.addEventListener('popstate', () => {
@@ -2825,14 +3431,21 @@ window.addEventListener('popstate', () => {
     return;
   }
 
-  // 2) Login screen se back → wapas Settings
+  // 2) Login screen se back → sirf tab jab session pehle se ho (settings se aaye)
   if (screenVisible('loginScreen')) {
     keepGuard();
-    goBackFromLogin();
+    if (fbAuth && fbAuth.currentUser) goBackFromLogin();
     return;
   }
 
-  // 3) Lock / Setup screen par back app ko band na kare
+  // 3) Accounts (Admin) screen → wapas list
+  if (screenVisible('accountsScreen')) {
+    showList();
+    keepGuard();
+    return;
+  }
+
+  // 4) Lock / Setup screen par back app ko band na kare
   if (screenVisible('lockScreen') || screenVisible('setupScreen')) {
     keepGuard();
     return;
