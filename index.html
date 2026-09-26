@@ -240,7 +240,7 @@
   <div class="card" id="d-details"></div>
   <button class="btn" onclick="editBill()">✏️ <span id="t-editbill">Edit Bill</span></button>
   <button class="btn green" onclick="addPayment()">💰 <span id="t-addpay">Add Payment</span></button>
-  <button class="btn green" onclick="shareWhatsApp()">📲 <span id="t-share">Share on WhatsApp</span></button>
+  <button class="btn green" onclick="shareBill()">📲 <span id="t-share">Share</span></button>
   <button class="btn red" onclick="deleteBill()">🗑 <span id="t-del">Delete Bill</span></button>
   <button class="btn" onclick="showList()">← <span id="t-back2">Back</span></button>
 </div>
@@ -337,7 +337,7 @@
   <div class="card" id="sd-details" style="cursor:default"></div>
   <button class="btn" onclick="editSupBill()">✏️ Edit Bill</button>
   <button class="btn green" onclick="addSupPayment()">💰 Pay to Supplier</button>
-  <button class="btn green" onclick="shareSupWhatsApp()">📲 Share on WhatsApp</button>
+  <button class="btn green" onclick="shareSupBill()">📲 Share</button>
   <button class="btn red" onclick="deleteSupBill()">🗑 Delete Bill</button>
   <button class="btn" onclick="showSupplierList()">← Back</button>
 </div>
@@ -575,7 +575,7 @@ service cloud.firestore {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.1.0';
+  const APP_VERSION = 'v1.1.1';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -1507,8 +1507,15 @@ function deleteBill() {
   showList();
 }
 
-/* ============ WHATSAPP (CUSTOMER) ============ */
-function normalizePhone(raw) {
+/* ============ SHARE (bill image → device native share sheet) ============ */
+// Share button: bill ka data dekh kar ek saaf-suthra, professional bill-IMAGE
+// banata hai aur wahi image seedha device ke native share sheet me daalta hai
+// (WhatsApp, Messenger, Bluetooth, email, nearby share — jo bhi app mile).
+// • Plain text share nahi hota.
+// • Phone number dakhil karne ki zaroorat nahi.
+// • Calculations bill ke maujooda functions se hi aate hain (koi naya formula nahi).
+
+function normalizePhone(raw) {   // purana helper — jaisa tha waisa hi rakha
   let p = String(raw).replace(/\D/g, '');
   if (!p) return '';
   if (p.startsWith('00')) p = p.slice(2);
@@ -1517,19 +1524,303 @@ function normalizePhone(raw) {
   if (p.length === 10 && p.startsWith('3')) return '92' + p;
   return p;
 }
-function shareWhatsApp() {
+
+const SHARE_FONT = "'Segoe UI', Roboto, system-ui, -apple-system, Arial, sans-serif";
+
+function shareStoreName() {
+  const el = document.getElementById('t-store');
+  const n = el && el.textContent ? String(el.textContent).trim() : '';
+  return n || 'Rajpoot General Store';
+}
+
+/* ---- text helpers (canvas ke liye) ---- */
+function shareFitText(ctx, text, maxWidth) {
+  const s = String(text == null ? '' : text);
+  if (!s) return '';
+  if (ctx.measureText(s).width <= maxWidth) return s;
+  let out = s;
+  while (out.length > 1 && ctx.measureText(out + '…').width > maxWidth) out = out.slice(0, -1);
+  return out + '…';
+}
+function shareWrapLines(ctx, text, maxWidth) {
+  const src = String(text == null ? '' : text).trim();
+  if (!src) return [];
+  const lines = [];
+  let line = '';
+  src.split(/\s+/).forEach(word => {
+    let w = word;
+    while (ctx.measureText(w).width > maxWidth) {          // ek hi shabd lamba ho to kaat ke alag line
+      if (line) { lines.push(line); line = ''; }
+      let cut = w.length;
+      while (cut > 1 && ctx.measureText(w.slice(0, cut)).width > maxWidth) cut--;
+      lines.push(w.slice(0, cut));
+      w = w.slice(cut);
+    }
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width <= maxWidth) line = test;
+    else { if (line) lines.push(line); line = w; }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+function shareClampLines(ctx, lines, maxLines, maxWidth) {
+  if (lines.length <= maxLines) return lines;
+  const out = lines.slice(0, maxLines);
+  let last = out[maxLines - 1];
+  while (last.length > 1 && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+  out[maxLines - 1] = last + '…';
+  return out;
+}
+
+/* ---- layout (measure pass) ---- */
+function shareMeasure(spec) {
+  const W = 900, PAD = 44;
+  const CONTENT = W - PAD * 2;                                   // 812
+  const COLS = { qty: 160, rate: 160, amt: 182 };
+  const ITEM_W = CONTENT - COLS.qty - COLS.rate - COLS.amt;       // 310
+  const TEXT_W = ITEM_W - 28;                                     // naam/QTY ke beech gap
+  const ctx = document.createElement('canvas').getContext('2d');
+  const nameFont = '600 24px ' + SHARE_FONT;
+  const subFont = '20px ' + SHARE_FONT;
+  const raw = (spec.rows && spec.rows.length) ? spec.rows : [{ name: spec.emptyNote || 'No items', empty: true }];
+  const measured = raw.map(r => {
+    ctx.font = nameFont;
+    const nameLines = shareClampLines(ctx, shareWrapLines(ctx, r.name || '-', TEXT_W), 2, TEXT_W);
+    let subLines = [];
+    if (r.sub) { ctx.font = subFont; subLines = shareClampLines(ctx, shareWrapLines(ctx, r.sub, TEXT_W), 2, TEXT_W); }
+    const h = Math.max(36, nameLines.length * 32) + (subLines.length ? subLines.length * 26 + 4 : 0) + 20;
+    return { r, nameLines, subLines, h };
+  });
+  const metaLines = (spec.meta || []).filter(m => m);
+  const totals = spec.totals || [];
+  const rowsH = measured.reduce((s, x) => s + x.h, 0);
+  const estimate = 116 + 62 + (metaLines.length ? metaLines.length * 28 + 16 : 0) + 46 + rowsH +
+                   18 + (totals.length * 44 + 24) + 30 + 58 + 60;
+  return { W, PAD, CONTENT, COLS, ITEM_W, TEXT_W, nameFont, subFont, measured, metaLines, totals, estimate };
+}
+
+/* ---- drawing (paint pass) ---- */
+function sharePaint(ctx, spec, L) {
+  const W = L.W, PAD = L.PAD, CONTENT = L.CONTENT, COLS = L.COLS, ITEM_W = L.ITEM_W;
+  const brand = '#1a73e8', text = '#202124', sub = '#5f6368', line = '#e4e7eb',
+        tint = '#e8f0fe', panel = '#f7f9fc', red = '#dc3545', green = '#28a745';
+  const qtyRight = PAD + ITEM_W + COLS.qty - 12;
+  const rateRight = qtyRight + COLS.rate;
+  const amtRight = W - PAD - 12;
+
+  ctx.textBaseline = 'alphabetic';
+
+  // ---------- header ----------
+  ctx.fillStyle = brand; ctx.fillRect(0, 0, W, 116);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff'; ctx.font = '700 36px ' + SHARE_FONT;
+  ctx.fillText(shareFitText(ctx, spec.store || shareStoreName(), CONTENT - 230), PAD, 60);
+  ctx.font = '20px ' + SHARE_FONT; ctx.fillStyle = 'rgba(255,255,255,.93)';
+  ctx.fillText(spec.heading || '', PAD, 94);
+  ctx.textAlign = 'right';
+  ctx.font = '600 15px ' + SHARE_FONT; ctx.fillStyle = 'rgba(255,255,255,.8)';
+  ctx.fillText('DATE', W - PAD, 50);
+  ctx.font = '700 26px ' + SHARE_FONT; ctx.fillStyle = '#fff';
+  ctx.fillText(spec.date || '-', W - PAD, 86);
+  ctx.textAlign = 'left';
+
+  // ---------- party (customer/supplier) ----------
+  let y = 116;
+  ctx.font = '700 26px ' + SHARE_FONT; ctx.fillStyle = text;
+  ctx.fillText(shareFitText(ctx, (spec.partyLabel || '') + ': ' + (spec.partyName || '-'), CONTENT), PAD, y + 40);
+  y += 40;
+  ctx.font = '21px ' + SHARE_FONT; ctx.fillStyle = sub;
+  L.metaLines.forEach(m => { y += 28; ctx.fillText(shareFitText(ctx, m, CONTENT), PAD, y); });
+  y += 22;
+
+  // ---------- table header ----------
+  ctx.fillStyle = tint; ctx.fillRect(PAD, y, CONTENT, 44);
+  ctx.font = '700 16px ' + SHARE_FONT; ctx.fillStyle = brand;
+  ctx.textAlign = 'left';  ctx.fillText('ITEM', PAD + 14, y + 28);
+  ctx.textAlign = 'right';
+  ctx.fillText('QTY', qtyRight, y + 28);
+  ctx.fillText('RATE (Rs.)', rateRight, y + 28);
+  ctx.fillText('AMOUNT (Rs.)', amtRight, y + 28);
+  ctx.textAlign = 'left';
+  y += 44;
+
+  // ---------- rows ----------
+  L.measured.forEach(m => {
+    const r = m.r, top = y;
+    if (r.empty) {
+      ctx.font = '20px ' + SHARE_FONT; ctx.fillStyle = sub;
+      ctx.fillText(m.nameLines.join(' ') || 'No items', PAD + 14, top + 36);
+    } else {
+      let ty = top + 36;
+      ctx.font = L.nameFont; ctx.fillStyle = text;
+      m.nameLines.forEach(l => { ctx.fillText(l, PAD + 14, ty); ty += 32; });
+      if (m.subLines.length) {
+        ctx.font = L.subFont; ctx.fillStyle = sub;
+        let sy = top + 36 + (m.nameLines.length - 1) * 32 + 28;
+        m.subLines.forEach(l => { ctx.fillText(l, PAD + 14, sy); sy += 26; });
+      }
+      ctx.textAlign = 'right';
+      ctx.font = '21px ' + SHARE_FONT; ctx.fillStyle = text;
+      if (r.qty) ctx.fillText(String(r.qty), qtyRight, top + 36);
+      ctx.fillStyle = sub;
+      if (r.rate) ctx.fillText(String(r.rate), rateRight, top + 36);
+      ctx.font = '600 23px ' + SHARE_FONT; ctx.fillStyle = text;
+      if (r.amount) ctx.fillText(String(r.amount), amtRight, top + 36);
+      ctx.textAlign = 'left';
+    }
+    ctx.fillStyle = line; ctx.fillRect(PAD, top + m.h - 1, CONTENT, 1);
+    y = top + m.h;
+  });
+
+  // ---------- totals ----------
+  y += 18;
+  const BOX_W = 420, boxX = W - PAD - BOX_W;
+  const boxH = Math.max(1, L.totals.length) * 44 + 24;
+  ctx.fillStyle = panel; ctx.fillRect(boxX, y, BOX_W, boxH);
+  ctx.strokeStyle = line; ctx.lineWidth = 1;
+  if (ctx.strokeRect) ctx.strokeRect(boxX + 0.5, y + 0.5, BOX_W - 1, boxH - 1);
+  let ty = y + 40;
+  L.totals.forEach((t, i) => {
+    const last = i === L.totals.length - 1;
+    ctx.textAlign = 'left';
+    ctx.font = (last ? '700 25px ' : (t.em ? '700 24px ' : '500 23px ')) + SHARE_FONT;
+    ctx.fillStyle = text;
+    ctx.fillText(t.label, boxX + 18, ty);
+    ctx.textAlign = 'right';
+    ctx.font = (last ? '700 25px ' : (t.em ? '700 24px ' : '500 23px ')) + SHARE_FONT;
+    if (last) ctx.fillStyle = (Number(t.value) > 0) ? red : green;
+    else ctx.fillStyle = (t.em || t.balance) ? text : sub;
+    ctx.fillText('Rs. ' + formatMoney(t.value), boxX + BOX_W - 18, ty);
+    ty += 44;
+  });
+  ctx.textAlign = 'left';
+  y += boxH + 30;
+
+  // ---------- footer ----------
+  ctx.fillStyle = line; ctx.fillRect(PAD, y, CONTENT, 1);
+  y += 32;
+  ctx.font = '20px ' + SHARE_FONT; ctx.fillStyle = sub;
+  ctx.fillText('Thank you — Shukriya!', PAD, y);
+  ctx.textAlign = 'right';
+  ctx.font = '18px ' + SHARE_FONT; ctx.fillStyle = sub;
+  ctx.fillText(spec.heading || '', W - PAD, y);
+  ctx.textAlign = 'left';
+  y += 26;
+  return y;                       // asli use ki gayi height
+}
+
+function shareBuildCanvas(spec) {
+  const L = shareMeasure(spec);
+  let H = Math.ceil(L.estimate);
+  let canvas, ctx, used, guard = 0;
+  const fresh = () => {
+    const c = document.createElement('canvas');
+    c.width = L.W; c.height = H;
+    const x = c.getContext('2d');
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, L.W, H);
+    return [c, x];
+  };
+  [canvas, ctx] = fresh();
+  used = sharePaint(ctx, spec, L);
+  while (used > H && guard++ < 3) {          // bahut lambi bill → bada canvas
+    H = Math.ceil(used + 30);
+    [canvas, ctx] = fresh();
+    used = sharePaint(ctx, spec, L);
+  }
+  if (used < H) {                            // neeche ki faltu white jagah kaat do
+    const out = document.createElement('canvas');
+    out.width = L.W; out.height = Math.max(1, Math.ceil(used));
+    const octx = out.getContext('2d');
+    octx.fillStyle = '#ffffff'; octx.fillRect(0, 0, out.width, out.height);
+    octx.drawImage(canvas, 0, 0);
+    return out;
+  }
+  return canvas;
+}
+
+function shareDataUrlToBlob(dataUrl) {
+  try {
+    const bin = atob(String(dataUrl).slice(String(dataUrl).indexOf(',') + 1));
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: 'image/png' });
+  } catch (e) { console.warn('Share image blob fail:', e); return null; }
+}
+function shareFileName(spec, nameHint) {
+  const safe = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'bill';
+  return 'bill-' + safe(nameHint) + '-' + safe(spec.date) + '.png';
+}
+
+/* ---- image ko device ke native share sheet me bhejo ---- */
+function shareToNativeSheet(blob, filename, title) {
+  const download = () => {
+    if (!blob) { alert('❌ Bill image banayi nahi ja saki.'); return; }
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} try { a.remove(); } catch (e) {} }, 3000);
+      alert('ℹ️ Is device/browser me direct share sheet support nahi hai.\n\nBill image download ho gayi hai — use kisi bhi app (WhatsApp, email, Bluetooth) me bhej do.');
+    } catch (e) { console.warn('Share fallback fail:', e); alert('❌ Bill image share nahi ho payi.'); }
+  };
+
+  let file = null;
+  try {
+    if (blob && typeof File !== 'undefined') file = new File([blob], filename, { type: 'image/png' });
+  } catch (e) { file = null; }
+
+  if (file && navigator.share && navigator.canShare) {
+    try {
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: title }).catch(err => {
+          if (err && err.name === 'AbortError') return;      // user ne cancel kiya — theek hai
+          console.warn('Share fail:', err);
+          download();
+        });
+        return;
+      }
+    } catch (e) { console.warn('Share sheet error:', e); }
+  }
+  download();
+}
+
+function shareSendBillImage(spec, nameHint) {
+  let canvas = null, dataUrl = '';
+  try { canvas = shareBuildCanvas(spec); }
+  catch (e) { console.warn('Bill image nahi bani:', e); alert('❌ Bill image nahi ban payi.\n' + (e && e.message ? e.message : e)); return; }
+  try { dataUrl = canvas.toDataURL('image/png'); }
+  catch (e) { console.warn('toDataURL fail:', e); }
+  const blob = dataUrl ? shareDataUrlToBlob(dataUrl) : null;
+  shareToNativeSheet(blob, shareFileName(spec, nameHint), (spec.heading || 'Bill') + ' — ' + (spec.partyName || ''));
+}
+
+/* ---- CUSTOMER BILL → Share ---- */
+function shareBill() {
   const bill = getBill(); if (!bill) return;
   const paid = totalPaid(bill);
-  const pending = totalAmount(bill) - paid;
-  let msg = '*Rajpoot General Store*\nCustomer: ' + (bill.name || '-') + '\nDate: ' + (bill.date || '-') + '\n------------------------\n';
-  (bill.items || []).forEach(it => {
-    msg += (it.name || '-') + ' x' + it.qty + ' = Rs. ' + formatMoney(Number(it.qty || 0) * Number(it.rate || 0)) + '\n';
-  });
-  msg += '------------------------\nTotal: Rs. ' + formatMoney(totalAmount(bill)) + '\nPaid: Rs. ' + formatMoney(paid) + '\nPending: Rs. ' + formatMoney(Math.max(pending, 0)) + '\n\nShukriya!';
-  const phone = prompt('Customer WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
-  let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  if (phone && phone.trim()) { const d = normalizePhone(phone); if (d) url = 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg); }
-  window.open(url, '_blank', 'noopener');
+  const pending = totalAmount(bill) - paid;          // (purane share ki wahi calculation)
+  const spec = {
+    heading: 'Customer Bill',
+    partyLabel: 'Customer',
+    partyName: bill.name || '-',
+    date: bill.date || '-',
+    emptyNote: 'No items in this bill',
+    meta: ['Payment type: ' + String(bill.ptype || 'cash').toUpperCase()],
+    rows: (bill.items || []).map(it => ({
+      name: it.name || '-',
+      qty: (it.qty === undefined || it.qty === null || it.qty === '') ? '-' : String(it.qty),
+      rate: formatMoney(it.rate),
+      amount: formatMoney(Number(it.qty || 0) * Number(it.rate || 0))
+    })),
+    totals: [
+      { label: 'Total Bill', value: totalAmount(bill), em: true },
+      { label: 'Amount Paid', value: paid },
+      { label: 'Pending', value: Math.max(pending, 0), balance: true }
+    ]
+  };
+  shareSendBillImage(spec, 'customer-bill ' + (bill.name || '') + ' ' + (bill.date || ''));
 }
 
 /* ============ SUPPLIER: HELPERS ============ */
@@ -2340,31 +2631,45 @@ function deleteSupBill() {
   showSupplierList();
 }
 
-function shareSupWhatsApp() {
+/* ---- SUPPLIER BILL → Share ---- */
+function shareSupBill() {
   const b = getSup(); if (!b) return;
-  const thisBill = supBillTotal(b);
+  const thisBill = supBillTotal(b);                  // (purane share ki wahi calculation)
   const stats = supplierTotalDues(b.name || '');
-  let msg = '*Rajpoot General Store*\nSupplier: ' + (b.name || '-') + '\nDate: ' + (b.date || '-') + '\n';
-  if (b.deliveryDate) msg += 'Delivery: ' + b.deliveryDate + '\n';
-  if (b.orderNo) msg += 'Order: ' + b.orderNo + '\n';
-  msg += '------------------------\n';
-  (b.products || []).forEach(p => {
-    const t = productTotal(p);
-    let line = '- ' + (p.name || '-');
-    if (p.qtyCartons > 0) line += ' (' + p.qtyCartons + ' ctn × ' + formatMoney(p.rateCartons) + ')';
-    if (p.qtyUnits > 0) line += ' (' + p.qtyUnits + (p.unitType ? ' ' + p.unitType : '') + ' × ' + formatMoney(p.rateUnits) + ')';
-    line += ' = Rs. ' + formatMoney(t);
-    msg += line + '\n';
-  });
-  msg += '------------------------\n';
-  msg += 'This Bill: Rs. ' + formatMoney(thisBill) + '\n';
-  msg += 'Opening: Rs. ' + formatMoney(stats.opening) + '\n';
-  msg += 'Total Paid: Rs. ' + formatMoney(stats.paid) + '\n';
-  msg += 'Total Dues: Rs. ' + formatMoney(Math.max(stats.due, 0)) + '\n';
-  const phone = prompt('Supplier WhatsApp number (e.g. 923001234567) — Cancel for share sheet:');
-  let url = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  if (phone && phone.trim()) { const d = normalizePhone(phone); if (d) url = 'https://wa.me/' + d + '?text=' + encodeURIComponent(msg); }
-  window.open(url, '_blank', 'noopener');
+  const meta = [];
+  if (b.deliveryDate) meta.push('Delivery: ' + b.deliveryDate);
+  if (b.orderNo) meta.push('Order: ' + b.orderNo);
+  meta.push('Payment type: ' + String(b.ptype || 'credit').toUpperCase());
+  const spec = {
+    heading: 'Supplier Bill',
+    partyLabel: 'Supplier',
+    partyName: b.name || '-',
+    date: b.date || '-',
+    emptyNote: 'No products in this bill',
+    meta: meta,
+    rows: (b.products || []).map(p => {
+      const c = toNumber(p.qtyCartons), u = toNumber(p.qtyUnits);
+      const qtyParts = [], rateParts = [];
+      if (c > 0) { qtyParts.push(c + ' ctn'); rateParts.push(formatMoney(p.rateCartons)); }
+      if (u > 0) { qtyParts.push(u + ' ' + (p.unitType || 'units')); rateParts.push(formatMoney(p.rateUnits)); }
+      return {
+        name: p.name || '-',
+        qty: qtyParts.length ? qtyParts.join(' + ') : '-',
+        rate: rateParts.length ? rateParts.join(' / ') : '-',
+        amount: formatMoney(productTotal(p)),
+        sub: (c > 0 && u > 0)
+          ? c + ' ctn × Rs. ' + formatMoney(p.rateCartons) + '  +  ' + u + ' ' + (p.unitType || 'units') + ' × Rs. ' + formatMoney(p.rateUnits)
+          : ''
+      };
+    }),
+    totals: [
+      { label: 'This Bill', value: thisBill, em: true },
+      { label: 'Opening Balance', value: stats.opening },
+      { label: 'Total Paid', value: stats.paid },
+      { label: 'Total Dues', value: Math.max(stats.due, 0), balance: true }
+    ]
+  };
+  shareSendBillImage(spec, 'supplier-bill ' + (b.name || '') + ' ' + (b.date || ''));
 }
 
 /* ============ PHOTOS: ATTACH / VIEW ============ */
