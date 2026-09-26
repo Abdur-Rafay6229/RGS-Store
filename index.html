@@ -39,6 +39,8 @@
   .card .meta { font-size:12px; color:#666; margin-bottom:5px; }
   .card .row { display:flex; justify-content:space-between; gap:8px; font-size:14px; align-items:center; }
   .card .card-badge { position:absolute; top:10px; right:10px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:bold; color:#fff; }
+  /* Firebase rules copy karne ke liye */
+  .rules-pre { white-space:pre-wrap; word-break:break-word; background:#f6f6f6; border:1px solid #e3e3e3; border-radius:6px; padding:8px; font-size:11px; line-height:1.45; color:#333; margin:4px 0 8px; }
   .pending { color:#dc3545; font-weight:bold; }
   .paid { color:#28a745; }
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; color:#fff; }
@@ -355,9 +357,70 @@
     <h3>☁️ Cloud Backup</h3>
     <div class="row" style="margin-top:8px"><span>Status</span><span id="cloudStatus">Not signed in</span></div>
     <div class="row"><span>Last sync</span><span id="lastSync">—</span></div>
-    <div class="row"><span>Sync status</span><span id="syncErr">—</span></div>
+    <div class="row"><span>Sync status</span><span id="syncErr" style="max-width:62%;text-align:right;font-size:11px;line-height:1.35;word-break:break-word">—</span></div>
     <button class="btn small" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign In</button>
     <button class="btn small green hidden" style="margin-top:5px" id="syncBtn" onclick="syncNow()">Sync Now</button>
+    <button class="btn small hidden" style="margin-top:5px" id="restoreBtn" onclick="restoreFromCloud()">Restore from Cloud</button>
+    <button class="btn small gray" style="margin-top:5px" id="cloudCheckBtn" onclick="runCloudCheck()">🩺 Check Cloud Access</button>
+    <details id="cloudRulesBox" style="margin-top:10px;font-size:12px;color:#666;text-align:left">
+      <summary style="cursor:pointer">Permission error aaye to yeh rules paste karo</summary>
+      <p style="margin:8px 0 4px">Console → <b>Firestore Database → Rules</b>:</p>
+      <pre class="rules-pre">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /stores/{userId} {
+      allow read, write: if request.auth != null
+                         &amp;&amp; request.auth.uid == userId;
+    }
+  }
+}</pre>
+      <p style="margin:8px 0 4px">Console → <b>Storage → Rules</b>:</p>
+      <pre class="rules-pre">rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /photos/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+                         &amp;&amp; request.auth.uid == userId;
+    }
+  }
+}</pre>
+      <p style="margin:8px 0 0">Rules publish karne ke baad <b>Check Cloud Access</b> dobara chalao. Agar rules sahi hone ke baad bhi permission error aaye to Console → <b>App Check → Enforcement</b> band karo (web ke liye).</p>
+    </details>
+  </div>
+  <div class="card" style="cursor:default">
+    <h3>🖼️ Cloudinary (Photo Storage)</h3>
+    <div class="row" style="margin-top:8px"><span>Status</span><span id="clStatus">Not configured</span></div>
+
+    <label for="clCloudName">Cloud Name</label>
+    <input id="clCloudName" type="text" placeholder="jaise: rgsstore01" autocapitalize="off" autocomplete="off" spellcheck="false">
+
+    <label for="clPreset">Upload Preset (unsigned)</label>
+    <input id="clPreset" type="text" placeholder="Cloudinary → Settings → Upload → Upload presets" autocapitalize="off" autocomplete="off" spellcheck="false">
+
+    <label for="clFolder">Folder (optional)</label>
+    <input id="clFolder" type="text" placeholder="rgs-photos" autocapitalize="off" autocomplete="off" spellcheck="false">
+
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="clEnabled" style="width:auto;padding:0"> Enable — nayi photos Cloudinary par jayengi
+    </label>
+
+    <details id="clAdv" style="margin-top:8px;font-size:12px;color:#666;text-align:left">
+      <summary style="cursor:pointer">Advanced (optional) — photo delete ke liye</summary>
+      <label for="clApiKey">API Key</label>
+      <input id="clApiKey" type="text" inputmode="numeric" autocomplete="off">
+      <label for="clApiSecret">API Secret</label>
+      <input id="clApiSecret" type="password" autocomplete="off">
+      <p style="margin:6px 0 0;font-size:11px">Yeh dono field sirf is device par rehti hain (backup export me nahi jaati). Tabhi bharo jab bill delete hone par Cloudinary se photo bhi hatani ho. Sirf upload ke liye Cloud Name + Preset kaafi hain.</p>
+    </details>
+
+    <button class="btn small" style="margin-top:10px" id="clSaveBtn" onclick="saveCloudinaryCfg()">💾 Save Cloudinary</button>
+    <button class="btn small gray" style="margin-top:5px" id="clTestBtn" onclick="testCloudinary()">🧪 Test Upload</button>
+    <button class="btn small gray" style="margin-top:5px" onclick="clearCloudinaryCfg()">Clear Config</button>
+    <div id="clMsg" style="margin-top:8px;font-size:12px;color:#666;text-align:left;word-break:break-word"></div>
+    <p style="margin-top:8px;font-size:11px;color:#888;text-align:left">
+      Setup: Cloudinary → Settings → <b>Upload</b> → Upload presets → naya <b>Unsigned</b> preset banao, aur Cloud Name Cloudinary Dashboard se copy karo.<br>
+      Cloudinary ON hone par Firebase login ki zaroorat nahi — bina sign-in ke bhi photos upload ho jayengi.
+    </p>
   </div>
   <div class="card" style="cursor:default">
     <h3>📤 Data</h3>
@@ -368,7 +431,7 @@
   <div class="card" style="cursor:default;text-align:center">
   <div style="font-size:12px;color:#666">
     Rajpoot General Store<br>
-    <strong id="appVersionSettings">v1.0.2</strong>
+    <strong id="appVersionSettings">v1.0.4</strong>
   </div>
 </div>
   <button class="btn" onclick="showList()">← Back to App</button>
@@ -385,7 +448,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.0.2';
+  const APP_VERSION = 'v1.0.4';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -952,22 +1015,27 @@ async function collectPhotos(rowSelector) {
     if (t.dataset && t.dataset.src) raw.push(t.dataset.src);
   });
   const hasNew = raw.some(isDataUrl);
+  const cloudOn = isCloudinaryOn();
   const isLoggedIn = !!(fbStorage && fbAuth && fbAuth.currentUser);
+  // Cloudinary set hai to login ki zaroorat nahi — warna purana Firebase path
+  const canUpload = cloudOn || isLoggedIn;
 
-  if (!hasNew) return { photos: raw, failed: 0, cancelled: false, uploaded: [] };
+  if (!hasNew) return { photos: raw, failed: 0, cancelled: false, uploaded: [], failReason: '' };
 
-  if (!isLoggedIn) {
-    if (!confirm('Photos ke liye login zaroori hai. Login ke bina nayi photos save nahi hongi (purani photos waisi hi rahengi). Continue?')) return null;
+  if (!canUpload) {
+    if (!confirm('Photo upload ke liye Cloudinary setup ya Firebase login zaroori hai. Bina upload ke nayi photos save nahi hongi (purani photos waisi hi rahengi). Continue?')) return null;
     const kept = raw.filter(s => !isDataUrl(s));
-    return { photos: kept, failed: raw.length - kept.length, cancelled: false, uploaded: [] };
+    return { photos: kept, failed: raw.length - kept.length, cancelled: false, uploaded: [],
+             failReason: 'Photo upload set nahi hai — Settings → Cloudinary configure karo, ya Cloud Backup me Sign In karo.' };
   }
 
   const out = [];
   const uploaded = [];
   let failed = 0;
+  let failReason = '';
   // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
   // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
-  showLoading('Photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
+  showLoading(cloudOn ? 'Cloudinary par photos upload ho rahi hain...' : 'Photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
   try {
     for (const p of raw) {
       if (isDataUrl(p)) {
@@ -978,13 +1046,15 @@ async function collectPhotos(rowSelector) {
         } catch (e) {
           console.warn('Photo upload fail:', e);
           failed++;
+          // Pehli wajah yaad rakho — user ko batana padega ki photo kyun nahi chadhi
+          if (!failReason) failReason = cloudErrorText(e);
         }
       } else {
         out.push(p);
       }
     }
   } finally { hideLoading(); }
-  return { photos: out, failed, cancelled: loadingCancelled, uploaded };
+  return { photos: out, failed, cancelled: loadingCancelled, uploaded, failReason };
 }
 
 async function saveBill() {
@@ -1040,7 +1110,7 @@ async function saveBill() {
     return;
   }
   flushPhotoDeletes();   // ab bill me photo sach me nahi hai → Storage se delete safe hai
-  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gayi.');
+  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gayi.' + (photoRes.failReason ? '\n\nReason: ' + photoRes.failReason : ''));
   if (wasEditing) openDetail(billData.id); else showList();
 }
 function openDetail(id) { currentBillId = id; renderDetail(); showScreen('detailScreen'); }
@@ -1590,17 +1660,141 @@ function compressImage(dataUrl, maxDim, quality) {
   });
 }
 
+/* ============ CLOUDINARY (photo storage) ============ */
+// Firebase Storage ki jagah Cloudinary par photo upload.
+// Config isi device ke localStorage me rehti hai — backup export me nahi jaati.
+const CLOUDINARY_KEY = 'rgs_cloudinary';
+
+function loadCloudinaryCfg() {
+  try {
+    const raw = localStorage.getItem(CLOUDINARY_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (!c || typeof c !== 'object') return null;
+    return {
+      cloudName: String(c.cloudName || '').trim(),
+      uploadPreset: String(c.uploadPreset || '').trim(),
+      folder: String(c.folder || '').replace(/^\/+|\/+$/g, ''),
+      apiKey: String(c.apiKey || '').trim(),
+      apiSecret: String(c.apiSecret || '').trim(),
+      enabled: c.enabled !== false
+    };
+  } catch (e) { return null; }
+}
+function isCloudinaryOn() {
+  const c = loadCloudinaryCfg();
+  return !!(c && c.enabled && c.cloudName && c.uploadPreset);
+}
+function isCloudinaryUrl(url) {
+  return typeof url === 'string' && url.indexOf('res.cloudinary.com/') !== -1;
+}
+// URL se public_id nikalo (delete ke liye):
+// .../image/upload/v1234/rgs-photos/abc.jpg -> rgs-photos/abc
+function cloudinaryPublicId(url) {
+  try {
+    if (typeof url !== 'string') return '';
+    const i = url.indexOf('/upload/');
+    if (i === -1) return '';
+    let rest = url.slice(i + 8).split('?')[0];
+    rest = rest.replace(/^v\d+\//, '');          // version segment
+    rest = rest.replace(/\.[a-zA-Z0-9]+$/, '');  // extension
+    return decodeURIComponent(rest);
+  } catch (e) { return ''; }
+}
+
+// Cloudinary signature = sha1(api_secret + sorted params)
+// crypto.subtle sirf secure context (https/localhost) par milta hai —
+// warna delete skip ho jayega (upload phir bhi chalta rahega).
+async function cloudinarySignature(paramStr, secret) {
+  try {
+    if (crypto && crypto.subtle && crypto.subtle.digest) {
+      const buf = new TextEncoder().encode(String(secret || '') + paramStr);
+      const hash = await crypto.subtle.digest('SHA-1', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) { console.warn('Cloudinary sign failed:', e); }
+  return '';
+}
+
+function cloudinaryUploadError(status, data) {
+  const err = data && data.error ? data.error : null;
+  const msg = err ? String(err.message || err.name || '') : '';
+  const low = msg.toLowerCase();
+  if (status === 404 || low.includes('unknown cloud name')) return 'Cloudinary: cloud name galat hai ya account nahi mila.';
+  if (status === 401 || low.includes('unauthorized') || low.includes('signature')) return 'Cloudinary: upload preset galat hai (preset Unsigned hona chahiye).';
+  if (low.includes('preset')) return 'Cloudinary: upload preset verify nahi hua — preset ko Unsigned karo.';
+  if (status === 429) return 'Cloudinary: rate limit — thodi der baad dobara try karo.';
+  if (status >= 500) return 'Cloudinary: server error (' + status + ') — baad me try karo.';
+  if (msg) return 'Cloudinary: ' + msg;
+  return 'Cloudinary: upload fail (HTTP ' + status + ').';
+}
+
+// Unsigned preset wala direct browser upload
+async function uploadToCloudinary(payload) {
+  const cfg = loadCloudinaryCfg();
+  if (!cfg || !cfg.cloudName || !cfg.uploadPreset) {
+    throw new Error('Cloudinary: Cloud Name ya Upload Preset missing (Settings → Cloudinary)');
+  }
+  const fd = new FormData();
+  fd.append('file', payload);                 // data-URL seedha chalta hai
+  fd.append('upload_preset', cfg.uploadPreset);
+  if (cfg.folder) fd.append('folder', cfg.folder);
+  const endpoint = 'https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/image/upload';
+
+  let res;
+  try {
+    res = await withTimeout(fetch(endpoint, { method: 'POST', body: fd }), 45000, 'Cloudinary upload timeout (45 second)');
+  } catch (e) {
+    throw new Error('Cloudinary: ' + ((e && e.message) ? e.message : 'network error'));
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (!res.ok || !data || !data.secure_url) {
+    throw new Error(cloudinaryUploadError(res ? res.status : 0, data));
+  }
+  return data.secure_url;
+}
+
+// Best effort: creds nahi hain to sirf warn karke chhod do (crash nahi hona chahiye)
+async function deleteCloudinaryPhoto(url) {
+  try {
+    const cfg = loadCloudinaryCfg();
+    const pid = cloudinaryPublicId(url);
+    if (!cfg || !cfg.apiKey || !cfg.apiSecret || !pid) {
+      console.warn('Cloudinary delete skipped (API key/secret nahi diye):', pid || url);
+      return false;
+    }
+    const ts = Math.floor(Date.now() / 1000);
+    const sig = await cloudinarySignature('public_id=' + pid + '&timestamp=' + ts, cfg.apiSecret);
+    if (!sig) { console.warn('Cloudinary delete skipped (sign nahi hua — https/localhost chahiye):', pid); return false; }
+
+    const fd = new FormData();
+    fd.append('public_id', pid);
+    fd.append('timestamp', String(ts));
+    fd.append('api_key', cfg.apiKey);
+    fd.append('signature', sig);
+    const endpoint = 'https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/destroy';
+    const res = await withTimeout(fetch(endpoint, { method: 'POST', body: fd }), 30000, 'Cloudinary delete timeout (30 second)');
+    const data = await res.json().catch(() => null);
+    if (!res.ok) { console.warn('Cloudinary delete failed:', res.status, data); return false; }
+    return true;
+  } catch (e) { console.warn('Cloudinary delete skipped:', e && e.message); return false; }
+}
+
 async function uploadPhoto(dataUrl) {
+  const payload = await compressImage(dataUrl);
+
+  // Cloudinary configured hai to wahan — Firebase login ki zaroorat nahi
+  if (isCloudinaryOn()) return uploadToCloudinary(payload);
+
   if (!fbStorage) {
-    throw new Error('Storage initialize nahi hua');
+    throw new Error('Cloud Storage init nahi hua — Settings → Cloudinary set karo, ya Firebase Console → Storage → Get Started chalao');
   }
   if (!fbAuth || !fbAuth.currentUser) {
-    throw new Error('Login nahi hai');
+    throw new Error('Login nahi hai — photo upload ke liye Sign In zaroori hai');
   }
   const ownerUid = fbAuth.currentUser.uid;   // uid() function ka shadow na bane
   const ref = fbStorage.ref('photos/' + ownerUid + '/' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.jpg');
-
-  const payload = await compressImage(dataUrl);
 
   // Upload with 30 sec timeout
   const uploadTask = ref.putString(payload, 'data_url');
@@ -1629,11 +1823,18 @@ function withTimeout(promise, ms, msg) {
   return Promise.race([promise, timeout]).finally(() => { clearTimeout(timer); });
 }
 
-// Photo (ya uska Storage file) delete — best effort.
-// Rules allow na karein ya file pehle se gayab ho, to sirf warn karo — app crash nahi hona chahiye.
+// Photo delete — best effort (Cloudinary dono tarah handle karta hai).
+// Rules allow na karein, creds na ho ya file pehle se gayab ho, to sirf warn karo —
+// app crash nahi hona chahiye.
 function deleteRemotePhoto(url) {
   try {
-    if (!fbStorage || typeof url !== 'string' || !url.startsWith('http')) return;
+    if (typeof url !== 'string' || !url.startsWith('http')) return;
+    if (isCloudinaryUrl(url)) {
+      const t = deleteCloudinaryPhoto(url);   // async — fire & forget
+      if (t && typeof t.catch === 'function') t.catch(e => console.warn('Photo delete skipped:', e && e.message));
+      return;
+    }
+    if (!fbStorage) return;
     const task = fbStorage.refFromURL(url).delete();
     if (task && typeof task.catch === 'function') task.catch(e => console.warn('Photo delete skipped:', e && e.message));
   } catch (e) { console.warn('Photo delete skipped:', e && e.message); }
@@ -1696,7 +1897,7 @@ async function saveSupBill() {
     return;
   }
   flushPhotoDeletes();
-  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gaya.');
+  if (photoRes.failed) alert(photoRes.failed + ' photo(s) save nahi hui' + (photoRes.cancelled ? ' (aapne upload cancel kiya)' : '') + ' — bill baaki data ke saath save ho gaya.' + (photoRes.failReason ? '\n\nReason: ' + photoRes.failReason : ''));
   if (wasEditing) { currentSupId = billData.id; renderSupDetail(); showScreen('supDetailScreen'); }
   else showSupplierList();
 }
@@ -2090,7 +2291,7 @@ function viewerNav(d) {
 })();
 
 /* ============ SETTINGS ============ */
-function openSettings() { updateSettingsUI(); showScreen('settingsScreen'); }
+function openSettings() { updateSettingsUI(); fillCloudinaryForm(); showScreen('settingsScreen'); }
 function updateSettingsUI() {
   document.getElementById('pinStatus').innerHTML = hasPIN() ? '<span class="status-dot on"></span>Set' : '<span class="status-dot off"></span>Not set';
   document.getElementById('bioStatus').innerHTML = isBioEnabled() && hasBioCred() ? '<span class="status-dot on"></span>Enabled' : '<span class="status-dot off"></span>Off';
@@ -2100,6 +2301,8 @@ function updateSettingsUI() {
     document.getElementById('cloudStatus').textContent = u ? u.email : 'Not signed in';
     document.getElementById('cloudBtn').textContent = u ? 'Sign Out' : 'Sign In';
     document.getElementById('syncBtn').classList.toggle('hidden', !u);
+    const rb = document.getElementById('restoreBtn');
+    if (rb) rb.classList.toggle('hidden', !u);
   } else {
     document.getElementById('cloudStatus').textContent = 'Not configured';
     document.getElementById('cloudBtn').textContent = 'Setup Required';
@@ -2113,12 +2316,235 @@ function updateSettingsUI() {
     errEl.textContent = err || 'OK';
     errEl.style.color = err ? '#dc3545' : '#28a745';
   }
+  // Cloudinary form mat bharo yahan (user ki adhuri typing udd jaye) — sirf status
+  updateCloudinaryStatus();
 }
 function setSyncError(msg) {
   try {
     if (msg) localStorage.setItem('rgs_sync_err', String(msg));
     else localStorage.removeItem('rgs_sync_err');
   } catch (e) { /* storage blocked */ }
+}
+
+/* ============ CLOUDINARY SETTINGS (form + status) ============ */
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
+function getVal(id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+
+function fillCloudinaryForm() {
+  const c = loadCloudinaryCfg() || {};
+  setVal('clCloudName', c.cloudName || '');
+  setVal('clPreset', c.uploadPreset || '');
+  setVal('clFolder', c.folder || '');
+  setVal('clApiKey', c.apiKey || '');
+  setVal('clApiSecret', c.apiSecret || '');
+  const cb = document.getElementById('clEnabled');
+  if (cb) cb.checked = !!(c.cloudName && c.uploadPreset && c.enabled !== false);
+  updateCloudinaryStatus();
+}
+
+function updateCloudinaryStatus() {
+  const el = document.getElementById('clStatus');
+  if (!el) return;
+  const c = loadCloudinaryCfg();
+  if (!c || !c.cloudName || !c.uploadPreset) { el.textContent = 'Not configured'; el.style.color = '#dc3545'; return; }
+  if (!c.enabled) { el.textContent = 'Saved — OFF'; el.style.color = '#888'; return; }
+  el.textContent = '✅ ' + c.cloudName + (c.folder ? '/' + c.folder : '');
+  el.style.color = '#28a745';
+}
+
+function cloudMsg(text, isErr) {
+  const el = document.getElementById('clMsg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isErr ? '#dc3545' : '#28a745';
+}
+
+function saveCloudinaryCfg() {
+  const cloudName = getVal('clCloudName').toLowerCase();
+  const uploadPreset = getVal('clPreset');
+  const folder = getVal('clFolder').replace(/^\/+|\/+$/g, '');
+  const apiKey = getVal('clApiKey');
+  const apiSecret = getVal('clApiSecret');
+  const enabledEl = document.getElementById('clEnabled');
+  const enabled = !!(enabledEl && enabledEl.checked);
+
+  if (enabled && !cloudName) { cloudMsg('Cloud Name bharo.', true); return; }
+  if (enabled && !uploadPreset) { cloudMsg('Upload Preset bharo (unsigned preset).', true); return; }
+  if (cloudName && !/^[a-z0-9._-]+$/.test(cloudName)) {
+    cloudMsg('Cloud Name me sirf a-z, 0-9, dot, dash aur underscore aata hai.', true); return;
+  }
+  try {
+    localStorage.setItem(CLOUDINARY_KEY, JSON.stringify({ cloudName, uploadPreset, folder, apiKey, apiSecret, enabled }));
+  } catch (e) { cloudMsg('Save nahi hua — browser storage blocked hai.', true); return; }
+  cloudMsg(enabled ? '✅ Saved — nayi photos ab Cloudinary par jayengi.'
+                   : '✅ Saved, lekin upload OFF hai (Enable tick karke dobara save karo).', false);
+  updateCloudinaryStatus();
+}
+
+function clearCloudinaryCfg() {
+  if (!confirm('Cloudinary config is device se hata dein?\nUpload wapas Firebase Storage par chalega.')) return;
+  try { localStorage.removeItem(CLOUDINARY_KEY); } catch (e) {}
+  ['clCloudName', 'clPreset', 'clFolder', 'clApiKey', 'clApiSecret'].forEach(id => setVal(id, ''));
+  const cb = document.getElementById('clEnabled'); if (cb) cb.checked = false;
+  cloudMsg('Config hata diya gaya.', false);
+  updateCloudinaryStatus();
+}
+
+async function testCloudinary() {
+  if (!isCloudinaryOn()) { cloudMsg('Pehle Cloud Name + Preset bharo, Enable tick karo aur Save dabao.', true); return; }
+  cloudMsg('Test upload chal raha hai...', false);
+  try {
+    const url = await uploadToCloudinary(CLOUD_PROBE_JPEG);
+    const cfg = loadCloudinaryCfg();
+    if (cfg.apiKey && cfg.apiSecret) {
+      const gone = await deleteCloudinaryPhoto(url);
+      cloudMsg(gone ? '✅ Test upload + delete dono OK — ' + url
+                    : '✅ Test upload OK, delete fail (key/secret check karo) — ' + url, !gone);
+    } else {
+      cloudMsg('✅ Test upload OK — ' + url, false);
+    }
+  } catch (e) {
+    const m = cloudErrorText(e);
+    cloudMsg('❌ ' + m, true);
+    alert('Cloudinary test fail:\n\n' + m);
+  }
+}
+
+/* ---- Firebase error ko samajhne layak message me badlo ---- */
+// "Missing or insufficient permissions" bol kar chup nahi hona chahiye —
+// user ko batana chahiye ki exactly kya bigda hai aur kya karna hai.
+function cloudErrorText(e) {
+  const raw = (e && e.message) ? String(e.message) : 'unknown error';
+  const code = (e && e.code) ? String(e.code) : '';
+  const s = (code + ' ' + raw).toLowerCase();
+  // Cloudinary ke errors pehle se saaf bhasha me likhe hote hain (cloudinaryUploadError) —
+  // unhe dobara mat badlo
+  if (s.includes('cloudinary')) return raw;
+  if (s.includes('permission') || s.includes('insufficient') || s.includes('unauthorized')) {
+    return 'Firebase Rules ne block kiya (permission-denied). Settings me "Permission error" wala section khol kar rules paste karo.';
+  }
+  if (s.includes('unauthenticated') || s.includes('user not authenticated') || s.includes('token') && s.includes('invalid')) {
+    return 'Login session expire ho gaya — Sign Out karke dobara Sign In karo.';
+  }
+  if (s.includes('no-default-bucket') || s.includes('bucket')) {
+    return 'Cloud Storage is project me set nahi hua — Firebase Console → Storage → Get Started chalao.';
+  }
+  if (s.includes('quota')) {
+    return 'Firebase Storage quota khatam — Console → Usage me dekho ya plan upgrade karo.';
+  }
+  if (s.includes('retry-limit') || s.includes('storage/retry')) {
+    return 'Storage par baar-baar retry fail hua — internet check karke dobara try karo.';
+  }
+  if (s.includes('app check') || s.includes('appcheck')) {
+    return 'App Check enforcement chalu hai — Firebase Console → App Check → Enforcement band karo.';
+  }
+  if (s.includes('timeout') || s.includes('network') || s.includes('unavailable') || s.includes('offline')) {
+    return 'Network/Firebase server se connect nahi ho raha — internet check karke dobara try karo.';
+  }
+  if (s.includes('storage/canceled')) {
+    return 'Upload cancel ho gaya (time limit ya aapne roka).';
+  }
+  return raw;
+}
+
+// 1x1 ka chhota JPEG — Storage permission check ke liye kaafi
+const CLOUD_PROBE_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCn/9k=';
+
+// Cloudinary ka apna probe — runCloudCheck me shamil hota hai
+async function cloudinaryCheckLines() {
+  const Y = '✅ ', N = '❌ ', W = '⚠️ ';
+  const lines = [];
+  const cfg = loadCloudinaryCfg();
+  if (!cfg || !cfg.cloudName || !cfg.uploadPreset) {
+    lines.push('ℹ️ Cloudinary set nahi hai — photos Firebase Storage par jayengi.');
+    return lines;
+  }
+  if (!cfg.enabled) {
+    lines.push(W + 'Cloudinary saved par OFF hai — upload abhi bhi Firebase Storage par hoga.');
+    return lines;
+  }
+  try {
+    const url = await uploadToCloudinary(CLOUD_PROBE_JPEG);
+    lines.push(Y + 'Cloudinary UPLOAD OK  (cloud: ' + cfg.cloudName + (cfg.folder ? ', folder: ' + cfg.folder : '') + ')');
+    const gone = await deleteCloudinaryPhoto(url);
+    lines.push(gone ? Y + 'Cloudinary DELETE OK'
+                    : W + 'Cloudinary delete skip — API Key/Secret nahi diye (bill delete par photo Cloudinary me reh jayegi).');
+  } catch (e) {
+    lines.push(N + 'Cloudinary UPLOAD fail: ' + cloudErrorText(e));
+  }
+  return lines;
+}
+
+/* ---- Cloud ka access step-by-step check karo (Settings button) ---- */
+// Har step ka result alert me dikhao, taki pata chale ki rules, login, ya
+// Storage — kaunsa hissa fail ho raha hai.
+async function runCloudCheck() {
+  const Y = '✅ ', N = '❌ ', W = '⚠️ ';
+  const lines = [];
+  const step = (t) => { lines.push(t); };
+  const clOn = isCloudinaryOn();
+  if (!firebaseReady) { alert('Cloud check:\n\n' + N + 'Firebase configured nahi hai.'); return; }
+  step(Y + 'Firebase loaded — project: ' + firebaseConfig.projectId + ', bucket: ' + (firebaseConfig.storageBucket || '—'));
+  if (!fbAuth || !fbAuth.currentUser) {
+    // Cloudinary login ke bina bhi photo upload kar deta hai — dono ka alag hisaab
+    const clLines = await cloudinaryCheckLines();
+    clLines.forEach(step);
+    const photoOk = clLines.some(l => l.indexOf('Cloudinary UPLOAD OK') !== -1);
+    step('');
+    if (photoOk) {
+      step(Y + 'Photo upload: Cloudinary se chalega (login ki zaroorat nahi).');
+      step('Firestore backup ke liye "Sign In" karo, phir yeh check dobara chalao.');
+    } else {
+      step(N + 'Sign in nahi hai — Firestore backup nahi chalega.');
+      step('Photo ke liye Settings → Cloudinary setup karo, ya "Sign In" dabao.');
+    }
+    alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
+    updateSettingsUI();
+    return;
+  }
+  const user = fbAuth.currentUser;
+  step(Y + 'Signed in: ' + (user.email || user.uid));
+
+  try {
+    await withTimeout(user.getIdToken(), 20000, 'Auth token timeout');
+    step(Y + 'Login token valid hai');
+  } catch (e) { step(N + 'Login token fail: ' + cloudErrorText(e)); }
+
+  let firestoreOk = false;
+  try {
+    await withTimeout(fbDb.collection('stores').doc(user.uid).get(), 25000, 'Firestore read timeout');
+    firestoreOk = true;
+    step(Y + 'Firestore READ OK  (path: stores/' + user.uid + ')');
+  } catch (e) {
+    step(N + 'Firestore READ fail: ' + cloudErrorText(e));
+  }
+
+  if (!fbStorage) {
+    step(clOn ? W + 'Cloud Storage SDK init nahi hua (Cloudinary chalu — photo upload par farak nahi padta).'
+              : N + 'Cloud Storage SDK init nahi hua — isi wajah se photos save nahi hoti.');
+  } else {
+    try {
+      const probe = fbStorage.ref('photos/' + user.uid + '/_cloudcheck.jpg');
+      await withTimeout(probe.putString(CLOUD_PROBE_JPEG, 'data_url'), 45000, 'Storage upload timeout (45s)');
+      step(Y + 'Storage UPLOAD OK  (path: photos/' + user.uid + '/)');
+      try { await withTimeout(probe.delete(), 20000, 'delete timeout'); step(Y + 'Storage DELETE OK'); }
+      catch (de) { step(W + 'Upload ho gaya par delete fail: ' + cloudErrorText(de)); }
+    } catch (e) {
+      step(clOn ? W + 'Storage UPLOAD fail (Cloudinary chalu — photo nahi ruktin): ' + cloudErrorText(e)
+                : N + 'Storage UPLOAD fail: ' + cloudErrorText(e));
+    }
+  }
+
+  (await cloudinaryCheckLines()).forEach(step);
+
+  const failed = lines.some(l => l.startsWith(N));
+  if (firestoreOk) setSyncError('');   // rules ab theek hain → purana stale error hata do
+  step('');
+  step(failed
+    ? 'Fix: neeche "Permission error" section khol kar rules Console me paste karo, phir yeh check dobara chalao.'
+    : 'Sab theek hai. Ab "Sync Now" dabao aur photo wali bill save karke dekho.');
+  alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
+  updateSettingsUI();
 }
 async function changePin() {
   if (hasPIN()) {
@@ -2220,7 +2646,7 @@ async function pushToCloud() {
     return true;
   } catch (e) {
     console.warn('Push failed:', e);
-    setSyncError('Backup failed: ' + (e && e.message ? e.message : 'unknown error'));
+    setSyncError('Backup failed: ' + cloudErrorText(e));
     return false;
   }
 }
@@ -2250,7 +2676,7 @@ async function pullFromCloud() {
     return true;
   } catch (e) {
     console.warn('Pull failed:', e);
-    setSyncError('Restore failed: ' + (e && e.message ? e.message : 'unknown error'));
+    setSyncError('Restore failed: ' + cloudErrorText(e));
     return false;
   }
 }
@@ -2260,6 +2686,15 @@ async function syncNow() {
   const ok = await pushToCloud();
   if (ok) { alert('✅ Synced.'); updateSettingsUI(); }
   else alert('❌ Sync failed.\n' + (localStorage.getItem('rgs_sync_err') || ''));
+}
+// Rules theek karne ke baad bina sign-out kiye cloud data dobara mehnga sakta hai
+async function restoreFromCloud() {
+  if (!firebaseReady || !fbAuth.currentUser) { alert('Sign in first.'); return; }
+  if (!confirm('Cloud backup is device par le aayein?')) return;
+  const ok = await pullFromCloud();
+  if (ok) alert('✅ Cloud data restore ho gaya.');
+  else alert('❌ Restore nahi hua.\n' + (localStorage.getItem('rgs_sync_err') || 'Cloud me koi data nahi mila (ya aapne Cancel dabaya).'));
+  updateSettingsUI();
 }
 let syncTimer = null;
 function scheduleAutoSync() {

@@ -1,4 +1,4 @@
-const CACHE = 'rgs-v11';
+const CACHE = 'rgs-v13';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 // Install event — app shell cache karo.
