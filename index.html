@@ -415,9 +415,15 @@
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Admin sirf isi (admins/{uid}) marker se banta hai — role client par kabhi nahi
+    // Admin sirf isi (admins/{uid}) marker se banta hai — role client par kabhi nahi.
+    // Extra safety: darja SIRF fix kiye hue email ko milta hai. Chahe kisi aur
+    // account ka purana marker pada bhi ho, wo kabhi admin nahi banega.
+    function adminEmail() {
+      return 'abdurrafay6010@gmail.com';
+    }
     function isAdmin() {
       return request.auth != null
+        &amp;&amp; request.auth.token.email == adminEmail()
         &amp;&amp; exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
@@ -438,32 +444,41 @@ service cloud.firestore {
     }
 
     // 3) Admin marker
-    //    - Sirf neeche fix kiye gaye admin email wala account APNA marker ek baar
-    //      khud bana sakta hai (ye email rules me likha hai — client kuch nahi badal sakta)
+    //    - Sirf adminEmail() wala account APNA marker ek baar khud bana sakta hai
+    //      (email rules me fix hai — client kuch nahi badal sakta)
     //    - Uske baad koi bhi ye doc badal/delete nahi kar sakta
+    //    - Doosre email ka marker (agar Console/ purane rules se bana ho) bhi
+    //      isAdmin() me count nahi hota, kyunki wahan bhi adminEmail() check hai
     match /admins/{userId} {
       allow read: if request.auth != null
                   &amp;&amp; (request.auth.uid == userId || isAdmin());
       allow create: if request.auth != null
                     &amp;&amp; request.auth.uid == userId
-                    &amp;&amp; request.auth.token.email == 'abdurrafay6010@gmail.com'
+                    &amp;&amp; request.auth.token.email == adminEmail()
                     &amp;&amp; !exists(/databases/$(database)/documents/admins/$(request.auth.uid));
       allow update, delete: if false;
     }
   }
 }</pre>
-      <p style="margin:8px 0 4px"><b>👑 Admin kaise bante hain</b> (sirf ek baar):</p>
+      <p style="margin:8px 0 4px"><b>👑 Admin — sirf abdurrafay6010@gmail.com</b> (sirf ek baar):</p>
       <ol style="margin:0 0 6px 18px;line-height:1.5">
-        <li>Upar wala poora rules Console me <b>Publish</b> karo.</li>
+        <li>Upar wala poora rules Console me <b>Publish</b> karo (ye step zaroori hai —
+            tabhi tak rules server par check karenge).</li>
         <li>App me <b>abdurrafay6010@gmail.com</b> se Sign In karo — login hote hi app
-            khud <b>admins</b> me aapka marker bana dega (rules isi email ko allow karte hain).</li>
-        <li>Phir Settings → <b>Refresh Admin Status</b> dabao → Role: <b>Admin 👑</b> dikhna chahiye.</li>
-        <li><i>Agar auto-claim na chale</i> (purane rules): neeche UID copy karo → Console →
-            collection <b>admins</b> → document ID = wahi UID → field <b>role</b> = <b>admin</b> → Save.</li>
+            khud <b>admins</b> me marker bana dega.</li>
+        <li>Phir Settings → <b>Refresh Admin Status</b> dabao → Role: <b>Admin 👑</b>.</li>
+        <li><i>Agar auto-claim na chale</i>: UID copy karo → Console → collection
+            <b>admins</b> → document ID = wahi UID → field <b>role</b> = <b>admin</b> → Save.</li>
       </ol>
+      <p style="margin:0 0 6px;font-size:11px;color:#c62828">
+        ⚠️ <b>Purana saaf karo:</b> Console → Firestore → collection <b>admins</b> me jo bhi
+        <b>doosre</b> uid ke docs hon unhe <b>Delete</b> kar do (jaise kisi purane test account ke).
+        Upar wale rules ke baad unka koi asar nahi rahega, par saaf hona chahiye.
+      </p>
       <p style="margin:0 0 6px;font-size:11px;color:#888">
-        Admin email rules me fix hai — koi doosra user frontend/localStorage/URL badal kar
-        khud ko admin nahi bana sakta, aur aapka role sirf Firestore se check hota hai.
+        Darja sirf upar wale email ko milta hai — baaki koi bhi email (chahe frontend/localStorage/URL
+        badal lo, chahe uske paas purana admins marker ho) admin nahi ban sakta. Role hamesha
+        Firestore rules se check hota hai.
       </p>
     <div class="row" style="gap:6px"><span>Your UID</span><span id="myUid" style="max-width:58%;word-break:break-all;font-size:11px">—</span></div>
     <button class="btn small gray" style="margin-top:6px" onclick="copyMyUid()">📋 Copy UID</button>
@@ -718,7 +733,10 @@ async function fetchAdminFlag(showMsg) {
   try {
     const ref = fbDb.collection('admins').doc(user.uid);
     const snap = await withTimeout(ref.get(), 15000, 'Admin check timeout');
-    adminFlag = !!snap.exists && (snap.data() || {}).role !== 'user';
+    // Email gate client par bhi (rules me bhi hai) — chahe kisi doosre account ka
+    // purana admins marker pada ho, UI me usse Admin kabhi nahi dikhega
+    adminFlag = isConfiguredAdminEmail(user.email)
+      && !!snap.exists && (snap.data() || {}).role !== 'user';
 
     // Fix kiye hue admin email ne login kiya par marker abhi nahi hai → ek baar khud
     // banao. Rules sirf isi email ko allow karte hain (email server-side token me aata
