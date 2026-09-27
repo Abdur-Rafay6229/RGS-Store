@@ -1326,7 +1326,9 @@ function calcTotal() {
   document.getElementById('f-pending').textContent = formatMoney(pending);
 }
 // Bill photos collect + HAMESHA Cloudinary par upload (koi fallback nahi).
-// Returns: null = upload nahi ho paya / user ne cancel kiya (save abort),
+// Returns: null = Cloudinary sign-in nahi hai, ya user ne loading me Cancel dabaya —
+//   Cancel par "Photo canceled" alert hota hai aur POORA save abort ho jata hai
+//   (photo save nahi hoti, form jaisa tha waisa hi rehta hai).
 // warna { photos, failed, cancelled, uploaded, failReason }
 async function collectPhotos(rowSelector) {
   const raw = [];
@@ -1352,14 +1354,21 @@ async function collectPhotos(rowSelector) {
   // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
   // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
   showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(60000, raw.length * 35000), { cancelable: true, sub: '0 / ' + raw.length });
+  // Cancel par chal raha upload turant ruk jaye (intezaar na karna pade)
+  photoUploadController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const signal = photoUploadController ? photoUploadController.signal : undefined;
   try {
     for (const p of raw) {
       if (isDataUrl(p)) {
-        if (loadingCancelled) { failed++; continue; }   // user ne Cancel dabaya
+        if (loadingUserCancelled) break;                    // user ne Cancel dabaya — aage koi upload nahi
+        if (loadingCancelled) { failed++; continue; }       // safety timer (auto-timeout) — purana behaviour
         try {
-          const url = await uploadPhoto(p);
+          const url = await uploadPhoto(p, signal);
+          // Cancel dabne ke baad upload poora hua ho tab bhi wo photo save nahi honi chahiye
+          if (loadingUserCancelled) { if (url) uploaded.push(url); break; }
           if (url) { out.push(url); uploaded.push(url); } else failed++;
         } catch (e) {
+          if (loadingUserCancelled) break;                  // cancel ki wajah se ruka — fail count mat badhao
           console.warn('Photo upload fail:', e);
           failed++;
           // Pehli wajah yaad rakho — user ko batana padega ki photo kyun nahi chadhi
@@ -1370,7 +1379,15 @@ async function collectPhotos(rowSelector) {
       }
       setLoadingSub((out.length + failed) + ' / ' + raw.length);
     }
-  } finally { hideLoading(); }
+  } finally { hideLoading(); photoUploadController = null; }
+
+  // User ne Cancel dabaya → poora save abort. Abhi tak upload ki gayi files bhi
+  // delete, taaki orphan file na bache aur form dobara save karne par photo saf se chadhe.
+  if (loadingUserCancelled) {
+    uploaded.forEach(deleteRemotePhoto);
+    alert('Photo canceled');
+    return null;
+  }
   return { photos: out, failed, cancelled: loadingCancelled, uploaded, failReason };
 }
 
@@ -2405,7 +2422,7 @@ function cloudinaryUploadError(status, data) {
 }
 
 // Unsigned preset wala direct browser upload — sirf signed-in account ke liye
-async function uploadToCloudinary(payload) {
+async function uploadToCloudinary(payload, signal) {
   const cfg = loadCloudinaryCfg();
   if (!cfg || !cfg.cloudName || !cfg.uploadPreset) {
     throw new Error('Cloudinary: Cloud Name ya Upload Preset missing (Settings → Cloudinary)');
@@ -2419,8 +2436,14 @@ async function uploadToCloudinary(payload) {
 
   let res;
   try {
-    res = await withTimeout(fetch(endpoint, { method: 'POST', body: fd }), 45000, 'Cloudinary upload timeout (45 second)');
+    res = await withTimeout(fetch(endpoint, { method: 'POST', body: fd, signal: signal }), 45000, 'Cloudinary upload timeout (45 second)');
   } catch (e) {
+    // User ne Cancel dabaya → upload abort. Ye "upload fail" nahi, apne aap me rukna hai.
+    if (e && (e.name === 'AbortError' || (signal && signal.aborted))) {
+      const ab = new Error('Upload canceled');
+      ab.name = 'AbortError';
+      throw ab;
+    }
     throw new Error('Cloudinary: ' + ((e && e.message) ? e.message : 'network error'));
   }
   let data = null;
@@ -2458,10 +2481,11 @@ async function deleteCloudinaryPhoto(url) {
 }
 
 // Photo upload → SIRF Cloudinary. Sign-in nahi to seedha error (fallback bilkul nahi).
-async function uploadPhoto(dataUrl) {
+// signal = user ne Cancel dabaya to chal raha upload turant abort ho jaye.
+async function uploadPhoto(dataUrl, signal) {
   if (!isCloudinaryOn()) throw new Error(cloudinaryNotSignedInReason());
   const payload = dataUrl;
-  return uploadToCloudinary(payload);
+  return uploadToCloudinary(payload, signal);
 }
 
 // Kisi bhi promise par simple timeout lagao
@@ -3831,6 +3855,12 @@ function importData(ev) {
 /* ============ LOADING (spinner + busy state) ============ */
 let loadingAutoTimer = null;
 let loadingCancelled = false;
+// Sirf user ke Cancel button se true — safety timer (auto-timeout) ko "user cancel"
+// na samjha jaaye, warna timeout par poora save abort ho jata.
+let loadingUserCancelled = false;
+// Photo upload ka AbortController — Cancel dabte hi chal raha upload ruk jaye,
+// warna alert/save-abort ko in-flight upload ka intezaar karna padta.
+let photoUploadController = null;
 let ldEl = null, ldMsg = null, ldSub = null, ldCancel = null;
 
 // Full-screen loader — sirf tab jahan operation poori screen cover karta hai
@@ -3838,6 +3868,7 @@ let ldEl = null, ldMsg = null, ldSub = null, ldCancel = null;
 function showLoading(msg, autoMs, opts) {
   opts = opts || {};
   loadingCancelled = false;
+  loadingUserCancelled = false;
   if (!ldEl) {
     ldEl = document.createElement('div');
     ldEl.id = 'loadingOverlay';
@@ -3860,7 +3891,12 @@ function showLoading(msg, autoMs, opts) {
   if (ldCancel) {
     if (opts.cancelable) {
       ldCancel.classList.remove('hidden');
-      ldCancel.onclick = () => { loadingCancelled = true; hideLoading(); };
+      ldCancel.onclick = () => {
+        loadingCancelled = true;
+        loadingUserCancelled = true;
+        if (photoUploadController) { try { photoUploadController.abort(); } catch (e) {} }
+        hideLoading();
+      };
     } else {
       ldCancel.classList.add('hidden');
       ldCancel.onclick = null;
