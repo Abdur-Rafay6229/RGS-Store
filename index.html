@@ -213,7 +213,7 @@
   <div class="header">
   <h1 id="t-store">Rajpoot General Store</h1>
   <p id="t-sub">Customer Bills Manager</p>
-  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.2.0</span></p>
+  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.3.1</span></p>
 </div>
   <div class="summary">
     <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
@@ -506,14 +506,14 @@
   <div class="card" style="cursor:default;text-align:center">
   <div style="font-size:12px;color:#666">
     Rajpoot General Store<br>
-    <strong id="appVersionSettings">v1.2.0</strong>
+    <strong id="appVersionSettings">v1.3.1</strong>
   </div>
 </div>
   <button class="btn" onclick="showList()">← Back to App</button>
 </div>
 
 <!-- hidden file inputs for photo pickers -->
-<input type="file" id="camInput" accept="image/*,video/*" capture="environment" class="hidden">
+<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
 <input type="file" id="galInput" accept="image/*" class="hidden">
 
 <!-- FIREBASE SDK (Auth + Firestore) — photo storage sirf Cloudinary hai -->
@@ -522,7 +522,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.2.0';
+  const APP_VERSION = 'v1.3.1';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -2728,11 +2728,8 @@ function attachBillPhoto(type, mode, btn) {
   const inp = mode === 'camera' ? document.getElementById('camInput') : document.getElementById('galInput');
   inp.value = '';
   inp.onchange = (ev) => handlePhotoSelect(ev);
-  // Rare: kuch embedded/old WebView me native camera (ya picker) khul hi na paye —
-  // crash ke bajaye clear message + Gallery fallback
-  if (mode === 'camera' && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-    alert('⚠️ Is device par camera available nahi lag raha.\n\nGallery button se photo choose karein.');
-  }
+  // Rare: kuch embedded/old WebView me file-input click throw kar de —
+  // crash ke bajaye clear message
   try {
     inp.click();   // ← native camera / gallery yahin se khulta hai
   } catch (e) {
