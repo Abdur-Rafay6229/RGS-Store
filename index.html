@@ -39,8 +39,33 @@
   .card .meta { font-size:12px; color:#666; margin-bottom:5px; }
   .card .row { display:flex; justify-content:space-between; gap:8px; font-size:14px; align-items:center; }
   .card .card-badge { position:absolute; top:10px; right:10px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:bold; color:#fff; }
-  /* Firebase rules copy karne ke liye */
-  .rules-pre { white-space:pre-wrap; word-break:break-word; background:#f6f6f6; border:1px solid #e3e3e3; border-radius:6px; padding:8px; font-size:11px; line-height:1.45; color:#333; margin:4px 0 8px; }
+  /* ===== LOADING / SPINNER =====
+     Sirf transform/opacity animate hota hai → GPU par chalta hai,
+     main thread block nahi hota, isliye ye khud performance issue nahi banata. */
+  .spin { width:18px; height:18px; flex:0 0 auto; border-radius:50%;
+    border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+    animation:spinAnim .7s linear infinite; display:inline-block; vertical-align:-3px; }
+  .spin.dark { border-color:rgba(26,115,232,.28); border-top-color:#1a73e8; }
+  .spin.lg { width:34px; height:34px; border-width:3px; vertical-align:middle; }
+  @keyframes spinAnim { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation-duration:2.4s; } }
+  /* Button ke andar loading state (spinner + text) */
+  .btn .spin { margin-right:7px; }
+  .btn.busy { opacity:.78; cursor:progress; }
+  .btn:disabled { opacity:.65; }
+  /* Card ke andar halka inline loader (list / accounts load) */
+  .inline-load { display:flex; align-items:center; justify-content:center; gap:9px;
+    padding:16px 10px; font-size:13px; color:#666; }
+  /* Full-screen loader — sirf sach me poori screen wale operation ke liye */
+  .ld-overlay { position:fixed; inset:0; z-index:99999; display:flex;
+    align-items:center; justify-content:center; background:rgba(0,0,0,.55);
+    -webkit-backdrop-filter:blur(1.5px); backdrop-filter:blur(1.5px); }
+  .ld-card { background:#fff; color:#202124; border-radius:12px; padding:20px 22px;
+    min-width:200px; max-width:86vw; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,.28); }
+  .ld-msg { margin-top:12px; font-size:15px; line-height:1.4; word-break:break-word; }
+  .ld-sub { margin-top:5px; font-size:12px; color:#666; min-height:15px; }
+  .ld-cancel { margin-top:12px; padding:9px 22px; background:#dc3545; color:#fff;
+    border:none; border-radius:8px; font-size:14px; cursor:pointer; width:100%; }
   .pending { color:#dc3545; font-weight:bold; }
   .paid { color:#28a745; }
   .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; color:#fff; }
@@ -176,8 +201,8 @@
     <label>Password</label>
     <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
     <div class="error-msg" id="loginErr"></div>
-    <button class="btn" onclick="doLogin()">Sign In</button>
-    <button class="btn gray" onclick="doSignup()">Create New Account</button>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <button class="btn gray" id="signupBtn" onclick="doSignup()">Create New Account</button>
     <button class="link-btn hidden" id="loginBackBtn" onclick="goBackFromLogin()">← Back</button>
     <p class="cl-hint" style="text-align:center">Login sirf ek baar karna padta hai — app session yaad rakhta hai, jab tak aap khud Sign Out na karein.</p>
   </div>
@@ -188,7 +213,7 @@
   <div class="header">
   <h1 id="t-store">Rajpoot General Store</h1>
   <p id="t-sub">Customer Bills Manager</p>
-  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.1.0</span></p>
+  <p style="font-size:11px;opacity:.75;margin-top:4px">Version <span id="appVersion">v1.2.0</span></p>
 </div>
   <div class="summary">
     <div><span id="t-bills">Total Bills</span><b id="billCount">0</b></div>
@@ -199,7 +224,7 @@
   <button class="btn dark" onclick="openSettings()">⚙️ <span id="t-settings">Settings</span></button>
   <button class="btn dark hidden" id="accountsBtn" onclick="openAccounts()">👥 Accounts (Admin)</button>
   <button class="btn dark hidden" id="installBtn" onclick="installApp()">⬇️ <span id="t-install">Install App</span></button>
-  <input id="billSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderList()">
+  <input id="billSearch" class="search" type="search" placeholder="Search name or date..." oninput="renderListSoon()">
   <div id="billList"></div>
 </div>
 
@@ -217,8 +242,8 @@
 
   <label>Bill Photos (optional)</label>
   <div class="photo-btns">
-    <button type="button" class="btn small green" onclick="attachBillPhoto('customer','camera')">📷 Camera</button>
-    <button type="button" class="btn small" onclick="attachBillPhoto('customer','gallery')">🖼 Gallery</button>
+    <button type="button" class="btn small green" onclick="attachBillPhoto('customer','camera',this)">📷 Camera</button>
+    <button type="button" class="btn small" onclick="attachBillPhoto('customer','gallery',this)">🖼 Gallery</button>
   </div>
   <div class="photo-row" id="customerPhotoRow"></div>
 
@@ -230,7 +255,7 @@
   <label id="t-apaid">Amount Paid</label><input id="f-paid" type="number" min="0" value="0" oninput="calcTotal()">
   <label id="t-apdate">Payment Date</label><input id="f-paiddate" type="date">
   <div class="total-box pending"><span id="t-tpending">Pending</span>: Rs. <span id="f-pending">0</span></div>
-  <button class="btn" onclick="saveBill()">💾 <span id="t-save">Save Bill</span></button>
+  <button class="btn" id="saveBillBtn" onclick="saveBill()">💾 <span id="t-save">Save Bill</span></button>
   <button class="btn" onclick="showList()">← <span id="t-back">Back</span></button>
 </div>
 
@@ -281,7 +306,7 @@
     </div>
     <div class="filter-summary" id="filterSummary"></div>
   </div>
-  <input id="supSearch" class="search" type="search" placeholder="Search name / order / date..." oninput="renderSupplierList()">
+  <input id="supSearch" class="search" type="search" placeholder="Search name / order / date..." oninput="renderSupplierListSoon()">
   <div id="supList"></div>
   <button class="btn" onclick="showList()">← <span id="t-custbills">Customer Bills</span></button>
 </div>
@@ -316,8 +341,8 @@
 
     <label style="margin-top:12px;font-weight:bold">Bill Photos (optional)</label>
   <div class="photo-btns">
-    <button type="button" class="btn small green" onclick="attachBillPhoto('supplier','camera')">📷 Camera</button>
-    <button type="button" class="btn small" onclick="attachBillPhoto('supplier','gallery')">🖼 Gallery</button>
+    <button type="button" class="btn small green" onclick="attachBillPhoto('supplier','camera',this)">📷 Camera</button>
+    <button type="button" class="btn small" onclick="attachBillPhoto('supplier','gallery',this)">🖼 Gallery</button>
   </div>
   <div class="photo-row" id="supplierPhotoRow"></div>
 
@@ -336,7 +361,7 @@
   <div class="total-box" style="background:#e8f0fe"><span>Grand Total</span>: Rs. <span id="s-grand">0</span></div>
   <div class="total-box pending"><span>Total Dues (after this payment)</span>: Rs. <span id="s-pending">0</span></div>
 
-  <button class="btn" onclick="saveSupBill()">💾 Save Supplier Bill</button>
+  <button class="btn" id="saveSupBillBtn" onclick="saveSupBill()">💾 Save Supplier Bill</button>
   <button class="btn" onclick="showSupplierList()">← Back</button>
 </div>
 
@@ -364,24 +389,14 @@
 
 <!-- ACCOUNTS (SIRF ADMIN) -->
 <div id="accountsScreen" class="hidden">
-  <div class="header"><h1>👥 Accounts</h1><p>Admin only — kisi bhi user ka account kholein</p></div>
+  <div class="header"><h1>👥 Accounts</h1></div>
 
   <!-- Top bar: yahan sirf Admin hi aata hai — hamesha apna darja dikhe -->
   <div class="card" id="accountsAdminBar" style="cursor:default;background:#1a237e;color:#fff;border:none">
     <div style="font-size:16px;line-height:1.3"><b>👑 ADMIN</b></div>
     <div style="font-size:12px;margin-top:5px;opacity:.95">Account: <b id="accountsAdminEmail">—</b></div>
-    <div style="font-size:11px;margin-top:6px;opacity:.85;line-height:1.45">
-      Aap har user ka account bina password ke khol sakte hain. Aapka apna data usse alag rehta hai.
-    </div>
   </div>
 
-  <div class="card" style="cursor:default;background:#e8f0fe">
-    <div class="meta" style="margin:0">
-      Yeh list sirf Admin ko dikhti hai. Kisi account par <b>Open</b> dabane par uska data (bills, suppliers,
-      photos, Cloudinary status) isi app me khul jayega — uske email/password ki zaroorat nahi.
-      Admin ka apna data alag rehta hai.
-    </div>
-  </div>
   <div id="accountsList"></div>
   <button class="btn" onclick="showList()">← Back</button>
 </div>
@@ -408,7 +423,7 @@
     <div class="row" style="margin-top:8px"><span>PIN Lock</span><span id="pinStatus">—</span></div>
     <div class="row"><span>Fingerprint / Face</span><span id="bioStatus">—</span></div>
     <button class="btn small" style="margin-top:10px" onclick="changePin()">Change PIN</button>
-    <button class="btn small" style="margin-top:5px" onclick="toggleBiometric()">Toggle Biometric</button>
+    <button class="btn small" style="margin-top:5px" id="bioToggleBtn" onclick="toggleBiometric()">Toggle Biometric</button>
   </div>
   <div class="card" style="cursor:default">
     <h3>👤 Account (Login &amp; Cloud Backup)</h3>
@@ -419,88 +434,13 @@
     <button class="btn small red" style="margin-top:10px" id="cloudBtn" onclick="handleCloud()">Sign Out</button>
     <button class="btn small green hidden" style="margin-top:5px" id="syncBtn" onclick="syncNow()">Sync Now</button>
     <button class="btn small hidden" style="margin-top:5px" id="restoreBtn" onclick="restoreFromCloud()">Restore from Cloud</button>
-    <button class="btn small gray" style="margin-top:5px" id="cloudCheckBtn" onclick="runCloudCheck()">🩺 Check Cloud Access</button>
-    <details id="cloudRulesBox" style="margin-top:10px;font-size:12px;color:#666;text-align:left">
-      <summary style="cursor:pointer">Rules (har user ka data alag) + Admin kaise banayein</summary>
-      <p style="margin:8px 0 4px">Console → <b>Firestore Database → Rules</b> me yeh poora rules paste karke <b>Publish</b> karo:</p>
-      <pre class="rules-pre">rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // Admin sirf isi (admins/{uid}) marker se banta hai — role client par kabhi nahi.
-    // Extra safety: darja SIRF fix kiye hue email ko milta hai. Chahe kisi aur
-    // account ka purana marker pada bhi ho, wo kabhi admin nahi banega.
-    function adminEmail() {
-      return 'abdurrafay6010@gmail.com';
-    }
-    function isAdmin() {
-      return request.auth != null
-        &amp;&amp; request.auth.token.email == adminEmail()
-        &amp;&amp; exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    // 1) Har user ka apna app data (bills, suppliers, openings, Cloudinary)
-    match /stores/{userId} {
-      allow read, write: if request.auth != null
-                         &amp;&amp; (request.auth.uid == userId || isAdmin());
-    }
-
-    // 2) Account directory (email list) — sirf apna, aur sirf Admin poori list
-    match /profiles/{userId} {
-      allow get: if request.auth != null
-                 &amp;&amp; (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
-      allow create, update: if request.auth != null
-                            &amp;&amp; request.auth.uid == userId;
-      allow delete: if false;
-    }
-
-    // 3) Admin marker
-    //    - Sirf adminEmail() wala account APNA marker ek baar khud bana sakta hai
-    //      (email rules me fix hai — client kuch nahi badal sakta)
-    //    - Uske baad koi bhi ye doc badal/delete nahi kar sakta
-    //    - Doosre email ka marker (agar Console/ purane rules se bana ho) bhi
-    //      isAdmin() me count nahi hota, kyunki wahan bhi adminEmail() check hai
-    match /admins/{userId} {
-      allow read: if request.auth != null
-                  &amp;&amp; (request.auth.uid == userId || isAdmin());
-      allow create: if request.auth != null
-                    &amp;&amp; request.auth.uid == userId
-                    &amp;&amp; request.auth.token.email == adminEmail()
-                    &amp;&amp; !exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-      allow update, delete: if false;
-    }
-  }
-}</pre>
-      <p style="margin:8px 0 4px"><b>👑 Admin — sirf abdurrafay6010@gmail.com</b> (sirf ek baar):</p>
-      <ol style="margin:0 0 6px 18px;line-height:1.5">
-        <li>Upar wala poora rules Console me <b>Publish</b> karo (ye step zaroori hai —
-            tabhi tak rules server par check karenge).</li>
-        <li>App me <b>abdurrafay6010@gmail.com</b> se Sign In karo — login hote hi app
-            khud <b>admins</b> me marker bana dega.</li>
-        <li>Phir Settings → <b>Refresh Admin Status</b> dabao → Role: <b>Admin 👑</b>.</li>
-        <li><i>Agar auto-claim na chale</i>: UID copy karo → Console → collection
-            <b>admins</b> → document ID = wahi UID → field <b>role</b> = <b>admin</b> → Save.</li>
-      </ol>
-      <p style="margin:0 0 6px;font-size:11px;color:#c62828">
-        ⚠️ <b>Purana saaf karo:</b> Console → Firestore → collection <b>admins</b> me jo bhi
-        <b>doosre</b> uid ke docs hon unhe <b>Delete</b> kar do (jaise kisi purane test account ke).
-        Upar wale rules ke baad unka koi asar nahi rahega, par saaf hona chahiye.
-      </p>
-      <p style="margin:0 0 6px;font-size:11px;color:#888">
-        Darja sirf upar wale email ko milta hai — baaki koi bhi email (chahe frontend/localStorage/URL
-        badal lo, chahe uske paas purana admins marker ho) admin nahi ban sakta. Role hamesha
-        Firestore rules se check hota hai.
-      </p>
-    <div class="row" style="gap:6px"><span>Your UID</span><span id="myUid" style="max-width:58%;word-break:break-all;font-size:11px">—</span></div>
-    <button class="btn small gray" style="margin-top:6px" onclick="copyMyUid()">📋 Copy UID</button>
-    <button class="btn small gray" style="margin-top:6px" onclick="refreshAdminStatus()">🔄 Refresh Admin Status</button>
-    <p style="margin-top:8px;font-size:11px;color:#888">
-      Roles client par kabhi store nahi hote — Admin ka darja Firestore rules se check hota hai,
-      isliye koi normal user frontend/localStorage badal kar khud ko Admin nahi bana sakta.
-      Photos hamesha <b>Cloudinary</b> par jate hain, isliye Storage rules ki zaroorat nahi hai.
-    </p>
-    </details>
+    <button class="btn small gray" style="margin-top:10px" id="cloudCheckBtn" onclick="runCloudCheck()">🩺 Check Cloud Access</button>
+    <!-- UID sirf Admin account me — normal user ke liye ye block DOM me render hi nahi hota -->
+    <div id="uidBlock" class="hidden">
+      <div class="row" style="gap:6px;margin-top:10px"><span>Your UID</span><span id="myUid" style="max-width:58%;word-break:break-all;font-size:11px"></span></div>
+      <button class="btn small gray" style="margin-top:6px" onclick="copyMyUid()">📋 Copy UID</button>
+    </div>
+    <button class="btn small gray" style="margin-top:6px" id="adminRefreshBtn" onclick="refreshAdminStatus()">🔄 Refresh Admin Status</button>
   </div>
   <div class="card" style="cursor:default">
     <h3>🖼️ Cloudinary (Photo Storage)</h3>
@@ -556,11 +496,6 @@ service cloud.firestore {
     <div class="row" style="margin-top:8px"><span>Your role</span><span id="adminRoleStatus">—</span></div>
     <div class="row"><span>Accounts visible</span><span id="adminAccountCount">—</span></div>
     <button class="btn small" style="margin-top:10px" onclick="openAccounts()">👥 Accounts (all users)</button>
-    <p style="margin-top:8px;font-size:11px;color:#888;text-align:left">
-      Admin ke paas har user ke account ka data dekhne/sambhalne ka access hai (bina password ke).
-      Admin ka apna data usse alag rehta hai. Role sirf Firebase Console se banta hai —
-      details neeche "Rules" section me.
-    </p>
   </div>
   <div class="card" style="cursor:default">
     <h3>📤 Data</h3>
@@ -571,7 +506,7 @@ service cloud.firestore {
   <div class="card" style="cursor:default;text-align:center">
   <div style="font-size:12px;color:#666">
     Rajpoot General Store<br>
-    <strong id="appVersionSettings">v1.1.0</strong>
+    <strong id="appVersionSettings">v1.2.0</strong>
   </div>
 </div>
   <button class="btn" onclick="showList()">← Back to App</button>
@@ -587,7 +522,7 @@ service cloud.firestore {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.1.2';
+  const APP_VERSION = 'v1.2.0';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -985,10 +920,10 @@ function startLock() {
   showScreen('lockScreen');
   showPinLockMsg();
   startLockTicker();
-  if (isBioEnabled() && hasBioCred()) {
-    // Sirf tab jab user ne kuch type na kiya ho — warna WebAuthn prompt beech me aa kar
-    // PIN entry block kar deta tha
-    setTimeout(() => { if (lockPin.length === 0 && pinLockLeft() === 0 && screenVisible('lockScreen')) tryBiometric(); }, 400);
+  // Biometric foran — koi artificial delay nahi. Pehle user kuch type na kar ho,
+  // PIN entry block na ho, aur lockout cooldown me na ho.
+  if (isBioEnabled() && hasBioCred() && !bioInFlight && lockPin.length === 0 && pinLockLeft() === 0) {
+    tryBiometric();
   }
 }
 async function verifyPin() {
@@ -1007,8 +942,21 @@ async function verifyPin() {
     if (navigator.vibrate) navigator.vibrate(200);
   }
 }
+// Credential ID bytes ek hi baar decode — har prompt par atob repeat karne ki zaroorat nahi
+let bioCredBytes = null, bioCredBytesFor = '';
+function bioCredBytesCached() {
+  const b64 = localStorage.getItem(BIO_CRED_KEY) || '';
+  if (!b64) return null;
+  if (bioCredBytes && bioCredBytesFor === b64) return bioCredBytes;
+  try { bioCredBytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); bioCredBytesFor = b64; }
+  catch (e) { bioCredBytes = null; bioCredBytesFor = ''; return null; }
+  return bioCredBytes;
+}
+
 async function registerBiometric() {
   if (!window.PublicKeyCredential) { alert('Biometric not supported.'); return false; }
+  const btn = document.getElementById('bioToggleBtn');
+  setBusy(btn, true);
   try {
     const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
     const userId = new Uint8Array(16); crypto.getRandomValues(userId);
@@ -1025,22 +973,41 @@ async function registerBiometric() {
       const idB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
       localStorage.setItem(BIO_CRED_KEY, idB64);
       localStorage.setItem(BIO_ENABLED_KEY, '1');
+      bioCredBytes = null; bioCredBytesFor = '';   // naya credential cache clear
       alert('✅ Biometric registered!'); return true;
     }
   } catch (e) { console.warn('Bio reg error:', e); alert('Biometric setup failed.'); }
+  finally { setBusy(btn, false); }
   return false;
 }
+
+// Native/system biometric prompt (WebAuthn platform authenticator) — koi custom UI nahi.
+// • bioInFlight guard: ek waqt me sirf EK prompt khula rahe (duplicate trigger nahi hoga)
+// • Retry: fail hone par message + 👆 keypad / button se turant dobara try
+// • PIN fallback: prompt cancel/fail ho to keypad normal chalta rehta hai
+let bioInFlight = false;
 async function tryBiometric() {
-  const credIdB64 = localStorage.getItem(BIO_CRED_KEY);
-  if (!credIdB64) { alert('Biometric not set up.'); return; }
+  if (bioInFlight) return;                        // duplicate prompt block
+  if (!screenVisible('lockScreen')) return;       // sirf lock screen par hi
+  if (pinLockLeft() > 0) { showPinLockMsg(); return; }
+  const idBytes = bioCredBytesCached();
+  if (!idBytes) { document.getElementById('lockErr').textContent = 'Biometric set up nahi hai. PIN daalein.'; return; }
+  bioInFlight = true;
+  const errEl = document.getElementById('lockErr');
+  if (errEl) errEl.textContent = '';
   try {
     const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
-    const idBytes = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
+    // Yahi native system prompt hai — device ka fingerprint/face, app ka UI nahi
     const assertion = await navigator.credentials.get({
-      publicKey: { challenge, allowCredentials: [{ id: idBytes, type: 'public-key' }], timeout: 60000, userVerification: 'required' }
+      publicKey: { challenge, allowCredentials: [{ id: idBytes, type: 'public-key' }], timeout: 60000, userVerification: 'required' },
+      mediation: 'required'                        // security: verification skip nahi ho sakta
     });
     if (assertion) { lockPin = ''; pinAttempts = 0; pinLockUntil = 0; unlockAndEnter(); }
-  } catch (e) { document.getElementById('lockErr').textContent = 'Biometric failed. Use PIN.'; }
+  } catch (e) {
+    console.warn('Biometric failed:', e && e.name);
+    const el = document.getElementById('lockErr');
+    if (el) el.textContent = 'Biometric fail. 👆 daba kar dobara try karein, ya PIN daalein.';
+  } finally { bioInFlight = false; }
 }
 
 /* ============ HELPERS ============ */
@@ -1232,6 +1199,17 @@ window.addEventListener('storage', (e) => {
 
 /* ============ SCREEN NAV ============ */
 const ALL_SCREENS = ['listScreen','formScreen','detailScreen','supListScreen','supFormScreen','supDetailScreen','settingsScreen','lockScreen','setupScreen','loginScreen','openingsScreen','accountsScreen'];
+
+// Search box par har keystroke par list dobara render hona unnecessary re-render thi
+// (bade list me noticeable lag). Chhota debounce — typing turant feel hoti hai,
+// par render ek hi baar hota hai.
+function debounce(fn, ms) {
+  let t = null;
+  return function () { clearTimeout(t); const a = arguments, c = this; t = setTimeout(() => fn.apply(c, a), ms); };
+}
+const renderListSoon = debounce(renderList, 120);
+const renderSupplierListSoon = debounce(renderSupplierList, 120);
+
 function showScreen(screen) {
   // Form chhodne par queued photo deletes cancel — save nahi hua to file delete nahi honi chahiye
   if (screen !== 'formScreen' && screen !== 'supFormScreen') pendingPhotoDeletes = [];
@@ -1373,7 +1351,7 @@ async function collectPhotos(rowSelector) {
   let failReason = '';
   // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
   // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
-  showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(60000, raw.length * 35000));
+  showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(60000, raw.length * 35000), { cancelable: true, sub: '0 / ' + raw.length });
   try {
     for (const p of raw) {
       if (isDataUrl(p)) {
@@ -1390,12 +1368,22 @@ async function collectPhotos(rowSelector) {
       } else {
         out.push(p);
       }
+      setLoadingSub((out.length + failed) + ' / ' + raw.length);
     }
   } finally { hideLoading(); }
   return { photos: out, failed, cancelled: loadingCancelled, uploaded, failReason };
 }
 
+// Save Bill — button ke andar loading + double-tap protection.
+// Photo upload ka full-screen loader collectPhotos() chalta hai; ye sirf
+// button state ke liye hai (aur duplicate save rokne ke liye).
 async function saveBill() {
+  const btn = document.getElementById('saveBillBtn');
+  if (!setBusy(btn, true, 'Saving...')) return;
+  try { await saveBillInner(); }
+  finally { setBusy(btn, false); }
+}
+async function saveBillInner() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Please write customer name'); return; }
   const items = [];
@@ -2499,7 +2487,14 @@ function deleteRemotePhoto(url) {
 }
 
 
+// Save Supplier Bill — button ke andar loading + double-tap protection
 async function saveSupBill() {
+  const btn = document.getElementById('saveSupBillBtn');
+  if (!setBusy(btn, true, 'Saving...')) return;
+  try { await saveSupBillInner(); }
+  finally { setBusy(btn, false); }
+}
+async function saveSupBillInner() {
   const rawName = document.getElementById('s-name').value.trim();
   if (!rawName) { alert('Supplier name likho.'); return; }
   // Naam ka pehle se maujood spelling use karo, warna "Ram" aur "ram" ke dues alag ho jayenge
@@ -2705,8 +2700,18 @@ function shareSupBill() {
 
 /* ============ PHOTOS: ATTACH / VIEW ============ */
 let currentBillPhotoRow = null;
+let currentPhotoBusyBtn = null;
 
-function attachBillPhoto(type, mode) {
+/* Camera button → DEVICE KA NATIVE CAMERA APP.
+   <input type="file" accept="image/*" capture="environment"> par click karne se
+   Android par device ka default/system camera app (ya uska capture mode) khulta hai —
+   isi liye 50/64/108MP, Night, Portrait, Video, Slow-Mo, Time-lapse, Pro/Manual, HDR,
+   Panorama, Macro, Ultrawide/Wide/Tele, flash, zoom, aspect ratio, AI features —
+   sab wahi milte hain jo device ka native camera officially support karta hai.
+   Koi bhi camera feature yahan fake/simulate nahi kiya ja raha.
+   Isliye getUserMedia se apna custom camera UI BILKUL nahi banaya — woh native
+   camera se replace nahi kar pata. */
+function attachBillPhoto(type, mode, btn) {
   // Photo = Cloudinary upload. Sign-in nahi hai to abhi ruk jao (clear error).
   if (!isCloudinaryOn()) {
     alert('❌ Photo add nahi hui.\n\n' + cloudinaryNotSignedInReason() +
@@ -2717,27 +2722,52 @@ function attachBillPhoto(type, mode) {
   const row = document.getElementById(rowId);
   if (!row) return;
   if (row.children.length >= 5) { alert('Max 5 photos.'); return; }
+  if (isBusy(btn)) return;                  // duplicate click block
   currentBillPhotoRow = row;
+  currentPhotoBusyBtn = btn || null;
   const inp = mode === 'camera' ? document.getElementById('camInput') : document.getElementById('galInput');
   inp.value = '';
   inp.onchange = (ev) => handlePhotoSelect(ev);
-  inp.click();
+  // Rare: kuch embedded/old WebView me native camera (ya picker) khul hi na paye —
+  // crash ke bajaye clear message + Gallery fallback
+  if (mode === 'camera' && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+    alert('⚠️ Is device par camera available nahi lag raha.\n\nGallery button se photo choose karein.');
+  }
+  try {
+    inp.click();   // ← native camera / gallery yahin se khulta hai
+  } catch (e) {
+    console.warn('Camera/gallery open failed:', e);
+    currentBillPhotoRow = null;
+    setBusy(currentPhotoBusyBtn, false);
+    currentPhotoBusyBtn = null;
+    alert('❌ Camera / Gallery open nahi ho paya.\n\nIs app ko browser me chala kar dobara try karein.');
+  }
 }
 
+// Native camera se aayi photo → turant chhoti (max 1600px) JPEG bana do.
+// Native camera 50/64/108MP deta hai — raw file 20-50MB hoti hai; bina resize kiye
+// data URL banne se app freeze / storage overflow hota tha. Isliye yahin resize,
+// baad me Cloudinary upload wahi chalta rahega.
 function handlePhotoSelect(ev) {
-  const f = ev.target.files[0];
-  if (!f) return;
-  if (f.type && !f.type.startsWith('image/')) { alert('Sirf image file select karo.'); return; }
+  const btn = currentPhotoBusyBtn;
+  currentPhotoBusyBtn = null;
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) { setBusy(btn, false); return; }              // user ne cancel kiya
+  if (f.type && !f.type.startsWith('image/')) { setBusy(btn, false); alert('Sirf image file select karo.'); return; }
   const row = currentBillPhotoRow;
   currentBillPhotoRow = null;
-  if (!row) return;
+  if (!row) { setBusy(btn, false); return; }
+  setBusy(btn, true, 'Photo load...');
   const reader = new FileReader();
   reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    if (!row || row.children.length >= 5) return;
-    addPhotoThumb(row, dataUrl, row.children.length);
+    compressImage(e.target.result)
+      .then((dataUrl) => {
+        if (!row || row.children.length >= 5) return;
+        addPhotoThumb(row, dataUrl, row.children.length);
+      })
+      .finally(() => setBusy(btn, false));
   };
-  reader.onerror = () => alert('Photo padhne me dikkat aayi. Dobara try karo.');
+  reader.onerror = () => { setBusy(btn, false); alert('Photo padhne me dikkat aayi. Dobara try karo.'); };
   reader.readAsDataURL(f);
 }
 
@@ -2981,6 +3011,7 @@ function refreshChrome() {
   if (rc) rc.textContent = isAdmin() ? 'Admin 👑' : 'User';
   const aac = document.getElementById('adminAccountCount');
   if (aac && typeof profilesCache !== 'undefined' && profilesCache.length) aac.textContent = profilesCache.length;
+  applyUidVisibility();   // role change par UID block turant sahi ho (admin-only)
   updateAdminBanner();
   if (screenVisible('settingsScreen')) updateSettingsUI();
 }
@@ -3021,8 +3052,7 @@ function updateSettingsUI() {
   if (ar) ar.textContent = isAdmin() ? 'Admin 👑' : 'User';
   const rs = document.getElementById('adminRoleStatus');
   if (rs) rs.textContent = isAdmin() ? '✅ Admin' : '❌ Normal user';
-  const mu = document.getElementById('myUid');
-  if (mu) mu.textContent = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '—';
+  applyUidVisibility();
 
   const ls = localStorage.getItem(acctKey('rgs_last_sync'));
   document.getElementById('lastSync').textContent = ls ? new Date(ls).toLocaleString() : '—';
@@ -3043,7 +3073,26 @@ function setSyncError(msg) {
     else localStorage.removeItem(acctKey('rgs_sync_err'));
   } catch (e) { /* storage blocked */ }
 }
+/* ---- UID: SIRF Admin account me ----
+   Sirf CSS hide nahi karta — normal user ke liye UID ka value DOM me likha hi
+   nahi jata, block render hi nahi hota, aur copyMyUid() bhi role check karta hai.
+   Isliye URL/localStorage/devtools se bhi UID section access nahi ho sakta. */
+function applyUidVisibility() {
+  const block = document.getElementById('uidBlock');
+  const mu = document.getElementById('myUid');
+  if (!block) return;
+  if (!isAdmin()) {
+    if (mu) mu.textContent = '';          // DOM me UID ka koi trace na rahe
+    block.classList.add('hidden');
+    return;
+  }
+  const u = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.uid : '';
+  if (mu) mu.textContent = u || '—';
+  block.classList.remove('hidden');
+}
 function copyMyUid() {
+  // Authorization gate — UI hide hone par bhi call block
+  if (!isAdmin()) { alert('UID sirf Admin account me dikhta hai.'); return; }
   const u = fbAuth && fbAuth.currentUser;
   if (!u) { alert('Sign in nahi hai.'); return; }
   try {
@@ -3052,9 +3101,12 @@ function copyMyUid() {
   } catch (e) { alert('UID: ' + u.uid); }
 }
 async function refreshAdminStatus() {
-  const ok = await fetchAdminFlag(true);   // fail hone par wahi alert fetchAdminFlag khud dikhata hai
-  if (ok) alert('✅ Aap Admin ho — Accounts section ab home screen par dikhne lagega.');
-  updateSettingsUI();
+  const btn = document.getElementById('adminRefreshBtn');
+  if (!setBusy(btn, true, 'Checking...')) return;   // duplicate click block
+  try {
+    const ok = await fetchAdminFlag(true);   // fail hone par wahi alert fetchAdminFlag khud dikhata hai
+    if (ok) alert('✅ Aap Admin ho — Accounts section ab home screen par dikhne lagega.');
+  } finally { setBusy(btn, false); updateSettingsUI(); }
 }
 
 /* ============ CLOUDINARY SETTINGS (form + status) ============ */
@@ -3149,6 +3201,13 @@ function cloudMsg(text, isErr) {
 }
 
 function saveCloudinaryCfg() {
+  const btn = document.getElementById('clSaveBtn');
+  // Entry gate — duplicate Save/Connect clicks block
+  if (!setBusy(btn, true, 'Saving...')) return;
+  try { saveCloudinaryCfgInner(); }
+  finally { setBusy(btn, false); }   // success aur error dono me loader hatao
+}
+function saveCloudinaryCfgInner() {
   const cloudName = getVal('clCloudName').toLowerCase();
   const uploadPreset = getVal('clPreset');
   const folder = getVal('clFolder').replace(/^\/+|\/+$/g, '');
@@ -3186,6 +3245,8 @@ function clearCloudinaryCfg() {
 
 async function testCloudinary() {
   if (!isCloudinaryOn()) { cloudMsg('Pehle Cloud Name + Preset bharo, Enable tick karo aur Save dabao.', true); return; }
+  const btn = document.getElementById('clTestBtn');
+  if (!setBusy(btn, true, 'Testing...')) return;   // duplicate submit block
   cloudMsg('Test upload chal raha hai...', false);
   try {
     const url = await uploadToCloudinary(CLOUD_PROBE_JPEG);
@@ -3201,7 +3262,7 @@ async function testCloudinary() {
     const m = cloudErrorText(e);
     cloudMsg('❌ ' + m, true);
     alert('Cloudinary test fail:\n\n' + m);
-  }
+  } finally { setBusy(btn, false); }   // fail me bhi loader hatao
 }
 
 /* ---- Firebase error ko samajhne layak message me badlo ---- */
@@ -3215,7 +3276,7 @@ function cloudErrorText(e) {
   // unhe dobara mat badlo
   if (s.includes('cloudinary')) return raw;
   if (s.includes('permission') || s.includes('insufficient') || s.includes('unauthorized')) {
-    return 'Firebase Rules ne block kiya (permission-denied). Settings me "Permission error" wala section khol kar rules paste karo.';
+    return 'Firebase Rules ne block kiya (permission-denied). Firebase Console → Firestore → Rules me published rules check karo.';
   }
   if (s.includes('unauthenticated') || s.includes('user not authenticated') || s.includes('token') && s.includes('invalid')) {
     return 'Login session expire ho gaya — Sign Out karke dobara Sign In karo.';
@@ -3284,58 +3345,62 @@ async function runCloudCheck() {
   const lines = [];
   const step = (t) => { lines.push(t); };
   if (!firebaseReady) { alert('Cloud check:\n\n' + N + 'Firebase configured nahi hai.'); return; }
-  step(Y + 'Firebase loaded — project: ' + firebaseConfig.projectId);
-  if (!fbAuth || !fbAuth.currentUser) {
-    step(N + 'Sign in nahi hai — pehle apne account me login karo.');
-    (await cloudinaryCheckLines()).forEach(step);
-    alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
-    return;
-  }
-  const user = fbAuth.currentUser;
-  step(Y + 'Signed in: ' + (user.email || user.uid));
-  step('Account data path: stores/' + (activeDataUid || user.uid) + (adminViewing ? '  (Admin kisi user ke account me hai)' : ''));
-
+  const btn = document.getElementById('cloudCheckBtn');
+  if (!setBusy(btn, true, 'Checking...')) return;   // duplicate check block
   try {
-    await withTimeout(user.getIdToken(), 20000, 'Auth token timeout');
-    step(Y + 'Login token valid hai');
-  } catch (e) { step(N + 'Login token fail: ' + cloudErrorText(e)); }
-
-  // Profile doc — isi se Admin ko accounts list milti hai
-  const profOk = await ensureProfile();
-  if (profOk) step(Y + 'Profile save OK  (profiles/' + user.uid + ')');
-  else step(N + 'Profile save fail (Accounts list ke liye profiles rule chahiye): permission-denied?');
-
-  let firestoreOk = false;
-  try {
-    await withTimeout(fbDb.collection('stores').doc(activeDataUid || user.uid).get(), 25000, 'Firestore read timeout');
-    firestoreOk = true;
-    step(Y + 'Firestore READ OK  (path: stores/' + (activeDataUid || user.uid) + ')');
-  } catch (e) {
-    step(N + 'Firestore READ fail: ' + cloudErrorText(e));
-  }
-
-  // Role / Admin access — rules publish hone ke baad hi chalta hai
-  const isAdminNow = await fetchAdminFlag(false);
-  step(isAdminNow ? Y + 'Role: ADMIN — Accounts section available' : W + 'Role: normal user (Admin nahi)');
-  if (isAdminNow) {
-    try {
-      const snap = await withTimeout(fbDb.collection('profiles').limit(50).get(), 20000, 'Profiles list timeout');
-      step(Y + 'Accounts list OK — ' + snap.size + ' profile(s) milin');
-    } catch (e) {
-      step(N + 'Accounts list fail (Admin ke liye profiles par list rule chahiye): ' + cloudErrorText(e));
+    step(Y + 'Firebase loaded — project: ' + firebaseConfig.projectId);
+    if (!fbAuth || !fbAuth.currentUser) {
+      step(N + 'Sign in nahi hai — pehle apne account me login karo.');
+      (await cloudinaryCheckLines()).forEach(step);
+      alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
+      return;
     }
-  }
+    const user = fbAuth.currentUser;
+    step(Y + 'Signed in: ' + (user.email || user.uid));
+    step('Account data path: stores/' + (activeDataUid || user.uid) + (adminViewing ? '  (Admin kisi user ke account me hai)' : ''));
 
-  (await cloudinaryCheckLines()).forEach(step);
+    try {
+      await withTimeout(user.getIdToken(), 20000, 'Auth token timeout');
+      step(Y + 'Login token valid hai');
+    } catch (e) { step(N + 'Login token fail: ' + cloudErrorText(e)); }
 
-  const failed = lines.some(l => l.startsWith(N));
-  if (firestoreOk) setSyncError('');   // rules ab theek hain → purana stale error hata do
-  step('');
-  step(failed
-    ? 'Fix: neeche "Rules" section khol kar rules Console me paste karo, phir yeh check dobara chalao.'
-    : 'Sab theek hai. Ab "Sync Now" dabao aur photo wali bill save karke dekho.');
-  alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
-  updateSettingsUI();
+    // Profile doc — isi se Admin ko accounts list milti hai
+    const profOk = await ensureProfile();
+    if (profOk) step(Y + 'Profile save OK  (profiles/' + user.uid + ')');
+    else step(N + 'Profile save fail (Accounts list ke liye profiles rule chahiye): permission-denied?');
+
+    let firestoreOk = false;
+    try {
+      await withTimeout(fbDb.collection('stores').doc(activeDataUid || user.uid).get(), 25000, 'Firestore read timeout');
+      firestoreOk = true;
+      step(Y + 'Firestore READ OK  (path: stores/' + (activeDataUid || user.uid) + ')');
+    } catch (e) {
+      step(N + 'Firestore READ fail: ' + cloudErrorText(e));
+    }
+
+    // Role / Admin access — rules publish hone ke baad hi chalta hai
+    const isAdminNow = await fetchAdminFlag(false);
+    step(isAdminNow ? Y + 'Role: ADMIN — Accounts section available' : W + 'Role: normal user (Admin nahi)');
+    if (isAdminNow) {
+      try {
+        const snap = await withTimeout(fbDb.collection('profiles').limit(50).get(), 20000, 'Profiles list timeout');
+        step(Y + 'Accounts list OK — ' + snap.size + ' profile(s) milin');
+      } catch (e) {
+        step(N + 'Accounts list fail (Admin ke liye profiles par list rule chahiye): ' + cloudErrorText(e));
+      }
+    }
+
+    (await cloudinaryCheckLines()).forEach(step);
+
+    const failed = lines.some(l => l.startsWith(N));
+    if (firestoreOk) setSyncError('');   // rules ab theek hain → purana stale error hata do
+    step('');
+    step(failed
+      ? 'Fix: Firebase Console → Firestore → Rules me sahi rules Publish karo, phir yeh check dobara chalao.'
+      : 'Sab theek hai. Ab "Sync Now" dabao aur photo wali bill save karke dekho.');
+    alert('CLOUD ACCESS CHECK\n\n' + lines.join('\n'));
+    updateSettingsUI();
+  } finally { setBusy(btn, false); }   // har case (success/error) me loader hatao
 }
 async function changePin() {
   if (hasPIN()) {
@@ -3407,6 +3472,8 @@ async function doLogin() {
   const pass = document.getElementById('loginPass').value;
   loginErr('');
   if (!email || !pass) { loginErr('Email aur password dono bharein'); return; }
+  const btn = document.getElementById('loginBtn');
+  if (!setBusy(btn, true, 'Signing in...')) return;   // duplicate click → Firebase request dobara nahi jayega
   try {
     await fbAuth.signInWithEmailAndPassword(email, pass);
     document.getElementById('loginPass').value = '';
@@ -3414,6 +3481,7 @@ async function doLogin() {
     // Data load + screen change → onAuthUser listener karega (session persistent)
   }
   catch (e) { loginErr(friendlyAuthError(e)); }
+  finally { setBusy(btn, false); }   // success par bhi loader hatao, warna stuck rahega
 }
 async function doSignup() {
   if (!firebaseReady) { alert('Firebase not configured.'); return; }
@@ -3422,6 +3490,8 @@ async function doSignup() {
   document.getElementById('loginErr').textContent = '';
   if (!email) { document.getElementById('loginErr').textContent = 'Email bharein'; return; }
   if (pass.length < 6) { document.getElementById('loginErr').textContent = 'Password min 6 chars'; return; }
+  const btn = document.getElementById('signupBtn');
+  if (!setBusy(btn, true, 'Creating...')) return;
   try {
     await fbAuth.createUserWithEmailAndPassword(email, pass);
     document.getElementById('loginPass').value = '';
@@ -3429,6 +3499,7 @@ async function doSignup() {
     // Aage ka (migration → PIN gate → data bootstrap) onAuthUser listener karega
   }
   catch (e) { document.getElementById('loginErr').textContent = friendlyAuthError(e); }
+  finally { setBusy(btn, false); }
 }
 async function signOutCloud() {
   if (!firebaseReady) return;
@@ -3500,18 +3571,25 @@ async function pullFromCloud(askFirst) {
 async function syncNow() {
   if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) { alert('Sign in nahi hai — Settings → Account me Sign In karein.'); return; }
   if (!confirm('Sync? Is device ka data cloud par chala jayega (usi account me).')) return;
-  const ok = await pushToCloud();
-  if (ok) { alert('✅ Synced.'); updateSettingsUI(); }
-  else alert('❌ Sync failed.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || ''));
+  const btn = document.getElementById('syncBtn');
+  if (!setBusy(btn, true, 'Syncing...')) return;
+  try {
+    const ok = await pushToCloud();
+    if (ok) { alert('✅ Synced.'); updateSettingsUI(); }
+    else alert('❌ Sync failed.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || ''));
+  } finally { setBusy(btn, false); }
 }
 // Rules theek karne ke baad bina sign-out kiye cloud data dobara mehnga sakta hai
 async function restoreFromCloud() {
   if (!firebaseReady || !fbAuth || !fbAuth.currentUser || !activeDataUid) { alert('Sign in nahi hai — Settings → Account me Sign In karein.'); return; }
   if (!confirm('Cloud backup is device par le aayein?')) return;
-  const ok = await pullFromCloud(true);
-  if (ok) alert('✅ Cloud data restore ho gaya.');
-  else alert('❌ Restore nahi hua.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || 'Cloud me koi data nahi mila (ya aapne Cancel dabaya).'));
-  updateSettingsUI();
+  const btn = document.getElementById('restoreBtn');
+  if (!setBusy(btn, true, 'Restoring...')) return;
+  try {
+    const ok = await pullFromCloud(true);
+    if (ok) alert('✅ Cloud data restore ho gaya.');
+    else alert('❌ Restore nahi hua.\n' + (localStorage.getItem(acctKey('rgs_sync_err')) || 'Cloud me koi data nahi mila (ya aapne Cancel dabaya).'));
+  } finally { setBusy(btn, false); updateSettingsUI(); }
 }
 let syncTimer = null;
 function scheduleAutoSync() {
@@ -3524,6 +3602,7 @@ function scheduleAutoSync() {
 /* ============ SESSION (auth listener + PIN gate + admin accounts) ============
    Startup: Firebase session (login) → PIN/Setup gate → data bootstrap → list
 */
+let bgProfileStartedFor = '';   // is uid ka background profile/role read ho chuka
 function onAuthUser(user) {
   try { hideLoading(); } catch (e) {}
 
@@ -3539,6 +3618,7 @@ function onAuthUser(user) {
     adminFlag = false;
     adminViewing = false;
     impersonatedUid = ''; impersonatedEmail = '';
+    bgProfileStartedFor = '';        // naye sign in me profile/role dobara padha jaye
     suppressSync = true;
     clearAccountMemory();
     suppressSync = false;
@@ -3561,12 +3641,17 @@ function onAuthUser(user) {
   refreshChrome();
   gateToDevice();             // PIN/Setup/lock → unlock par unlockAndEnter bootstrap karega
 
-  // Background: profile + role — ye rukawat na dale isliye alag chalate hain
-  (async () => {
-    try { await ensureProfile(); } catch (e) {}
-    if (adminViewing) return;
-    if (fbAuth && fbAuth.currentUser && fbAuth.currentUser.uid === user.uid) await fetchAdminFlag(false);
-  })();
+  // Background: profile + role — ye rukawat na dale isliye alag chalate hain.
+  // Har uid ke liye sirf ek hi baar (warm start par onAuthUser 2 baar chalta hai —
+  // warna same Firestore read dobara ho jaati thi).
+  if (bgProfileStartedFor !== user.uid) {
+    bgProfileStartedFor = user.uid;
+    (async () => {
+      try { await ensureProfile(); } catch (e) {}
+      if (adminViewing) return;
+      if (fbAuth && fbAuth.currentUser && fbAuth.currentUser.uid === user.uid) await fetchAdminFlag(false);
+    })();
+  }
 }
 
 // Login ke baad device gate: pehle Setup/Lock, unlocked ho to seedha andar
@@ -3603,7 +3688,8 @@ async function openAccounts() {
   if (ae) ae.textContent = (fbAuth && fbAuth.currentUser) ? (fbAuth.currentUser.email || fbAuth.currentUser.uid) : '—';
   showScreen('accountsScreen');
   const list = document.getElementById('accountsList');
-  if (list) list.innerHTML = '<div class="card" style="cursor:default">⏳ Accounts list aa rahi hai...</div>';
+  if (list) list.innerHTML = '<div class="card" style="cursor:default"><div class="inline-load">' +
+    '<span class="spin dark" aria-hidden="true"></span> Accounts list load ho rahi hai...</div></div>';
   try {
     const snap = await withTimeout(
       fbDb.collection('profiles').orderBy('email').limit(500).get(),
@@ -3618,7 +3704,7 @@ async function openAccounts() {
     if (aac) aac.textContent = profilesCache.length;
   } catch (e) {
     if (list) list.innerHTML = '<div class="card" style="cursor:default;color:#dc3545">❌ Accounts list nahi mili:<br>' +
-      escapeHtml(cloudErrorText(e)) + '<br><br>Firestore rules publish kiye hain? (Settings → Account)</div>';
+      escapeHtml(cloudErrorText(e)) + '</div>';
   }
 }
 
@@ -3744,39 +3830,88 @@ function importData(ev) {
   ev.target.value = '';
 }
 
-/* ============ LOADING OVERLAY ============ */
+/* ============ LOADING (spinner + busy state) ============ */
 let loadingAutoTimer = null;
 let loadingCancelled = false;
+let ldEl = null, ldMsg = null, ldSub = null, ldCancel = null;
 
-function showLoading(msg, autoMs) {
+// Full-screen loader — sirf tab jahan operation poori screen cover karta hai
+// (app boot, account data load, photo upload batch, admin account open).
+function showLoading(msg, autoMs, opts) {
+  opts = opts || {};
   loadingCancelled = false;
-  let el = document.getElementById('loadingOverlay');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'loadingOverlay';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-size:16px;text-align:center;padding:20px;';
-    document.body.appendChild(el);
+  if (!ldEl) {
+    ldEl = document.createElement('div');
+    ldEl.id = 'loadingOverlay';
+    ldEl.className = 'ld-overlay';
+    ldEl.innerHTML =
+      '<div class="ld-card">' +
+        '<span class="spin dark lg" aria-hidden="true"></span>' +
+        '<div class="ld-msg"></div>' +
+        '<div class="ld-sub"></div>' +
+        '<button type="button" class="ld-cancel hidden">Cancel</button>' +
+      '</div>';
+    document.body.appendChild(ldEl);
+    ldMsg   = ldEl.querySelector('.ld-msg');
+    ldSub   = ldEl.querySelector('.ld-sub');
+    ldCancel = ldEl.querySelector('.ld-cancel');
   }
-  el.innerHTML =
-    '<div style="margin-bottom:20px">' + escapeHtml(msg || 'Loading...') + '</div>' +
-    '<button id="loadingCancelBtn" style="padding:10px 24px;background:#dc3545;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">Cancel</button>';
-  el.style.display = 'flex';
-  const cancelBtn = document.getElementById('loadingCancelBtn');
-  // Cancel = aage ki photos upload nahi hongi (bill phir bhi save hogi)
-  if (cancelBtn) cancelBtn.onclick = () => { loadingCancelled = true; hideLoading(); };
-  // Safety valve — overlay kabhi atka na rahe. Har photo ka apna 30s timeout hai,
-  // isliye caller photo-count ke hisaab se waqt de sakta hai (pehle fixed 40s tha,
-  // jo 5 photo wale batch ko beech me hi kaat deta tha).
+  ldMsg.textContent = msg || 'Loading...';
+  if (ldSub) ldSub.textContent = opts.sub || '';
+  // Cancel sirf wahan dikhao jahan sach me aage ka kaam rok sakte hain (photo batch)
+  if (ldCancel) {
+    if (opts.cancelable) {
+      ldCancel.classList.remove('hidden');
+      ldCancel.onclick = () => { loadingCancelled = true; hideLoading(); };
+    } else {
+      ldCancel.classList.add('hidden');
+      ldCancel.onclick = null;
+    }
+  }
+  ldEl.classList.remove('hidden');
+  // Safety valve — loader kabhi atka na rahe
   clearTimeout(loadingAutoTimer);
   loadingAutoTimer = setTimeout(() => { loadingCancelled = true; hideLoading(); }, Number(autoMs) > 0 ? Number(autoMs) : 60000);
 }
+// Chhota progress note (e.g. "2 / 5 photos")
+function setLoadingSub(txt) { if (ldSub) ldSub.textContent = txt || ''; }
 
 function hideLoading() {
   clearTimeout(loadingAutoTimer);
   loadingAutoTimer = null;
-  const el = document.getElementById('loadingOverlay');
-  if (el) el.style.display = 'none';
+  if (ldEl) ldEl.classList.add('hidden');
 }
+
+// --- Button ke andar loading state -------------------------------------------
+// Operation jis button par chal raha hai, loading wahi button ke andar dikhta hai.
+// Saath hi button disable ho jata hai → double click / duplicate request nahi.
+function setBusy(btn, on, label) {
+  if (!btn) return false;
+  if (on) {
+    if (btn.dataset.busy === '1') return false;      // already busy → doosra click ignore
+    btn.dataset.busy = '1';
+    btn.dataset.busyHtml = btn.innerHTML;
+    const s = document.createElement('span');
+    s.className = 'spin';
+    s.setAttribute('aria-hidden', 'true');
+    btn.insertBefore(s, btn.firstChild);
+    if (label) btn.appendChild(document.createTextNode(label));
+    btn.disabled = true;
+    btn.classList.add('busy');
+    return true;
+  }
+  if (btn.dataset.busy !== '1') return true;
+  const h = btn.dataset.busyHtml;
+  delete btn.dataset.busy;
+  delete btn.dataset.busyHtml;
+  if (h !== undefined) btn.innerHTML = h;             // original label wapas
+  btn.disabled = false;
+  btn.classList.remove('busy');
+  return true;
+}
+function isBusy(btn) { return !!(btn && btn.dataset.busy === '1'); }
+// Button ka apna default label yaad rakho (taaki busy hata sakte waqt wahi wapas aaye)
+function rememberLabel(btn) { if (btn && btn.dataset.baseLabel === undefined) btn.dataset.baseLabel = btn.innerHTML; }
 
 /* ============ PWA INSTALL ============ */
 let deferredPrompt = null;
@@ -3820,7 +3955,11 @@ window.addEventListener('load', () => {
 
   // 1) Firebase session (login) → 2) PIN/Setup gate → 3) data bootstrap → 4) list
   if (firebaseReady && fbAuth) {
-    showLoading('Checking your session...', 20000);
+    // Session pehle se pata hai (warm start) → loader/splash wait kiye bina
+    // seedha PIN/lock gate kholo, jisse biometric bhi foran trigger ho.
+    const warmUser = fbAuth.currentUser;
+    if (warmUser) { try { onAuthUser(warmUser); } catch (e) { console.warn(e); } }
+    else showLoading('Checking your session...', 20000, { sub: 'Login check ho raha hai' });
     fbAuth.onAuthStateChanged((user) => { try { hideLoading(); } catch (e) {} onAuthUser(user); });
   } else {
     showLoginScreen(false);
