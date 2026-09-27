@@ -522,7 +522,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.3.1';
+  const APP_VERSION = 'v1.3.2';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -1351,9 +1351,10 @@ async function collectPhotos(rowSelector) {
   const uploaded = [];
   let failed = 0;
   let failReason = '';
-  // Har photo ko 35 sec ka waqt — 5 photos = 175 sec, isliye overlay ka safety timer
-  // photo count ke hisaab se lagao (pehle fixed 40 sec tha, wo beech me hi sab photo gira deta tha)
-  showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(60000, raw.length * 35000), { cancelable: true, sub: '0 / ' + raw.length });
+  // Overlay ka safety timer photo count ke hisaab se: har photo ko 100 sec (upload ka
+  // max 90s + buffer), kam se kam 3 min. Pehle 35s/photo tha — compressed photo bhi
+  // usme kabhi-kabhi kat jati thi, aur loader atka rehta tha.
+  showLoading('Cloudinary par photos upload ho rahi hain...', Math.max(180000, raw.length * 100000), { cancelable: true, sub: '0 / ' + raw.length });
   // Cancel par chal raha upload turant ruk jaye (intezaar na karna pade)
   photoUploadController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   const signal = photoUploadController ? photoUploadController.signal : undefined;
@@ -1363,7 +1364,10 @@ async function collectPhotos(rowSelector) {
         if (loadingUserCancelled) break;                    // user ne Cancel dabaya — aage koi upload nahi
         if (loadingCancelled) { failed++; continue; }       // safety timer (auto-timeout) — purana behaviour
         try {
-          const url = await uploadPhoto(p, signal);
+          // Pehle se compressed na ho wali (ya purani) badi photo — upload se pehle chhota kar lo
+          const payload = (p.length > 700000) ? await compressImage(p, 1600, 0.8) : p;
+          if (loadingUserCancelled) break;
+          const url = await uploadPhoto(payload, signal);
           // Cancel dabne ke baad upload poora hua ho tab bhi wo photo save nahi honi chahiye
           if (loadingUserCancelled) { if (url) uploaded.push(url); break; }
           if (url) { out.push(url); uploaded.push(url); } else failed++;
@@ -2434,17 +2438,49 @@ async function uploadToCloudinary(payload, signal) {
   if (cfg.folder) fd.append('folder', cfg.folder);
   const endpoint = 'https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/image/upload';
 
+  // Timeout payload ke hisaab se (pehle fixed 45s tha — badi photo par wahi timeout
+  // kha ja tha). 1600px compressed photo ≈ 0.3 MB → ~45s; badi file → 90s tak.
+  const mb = Math.max(0.01, (payload ? payload.length : 0) / 1048576);
+  const upMs = Math.min(90000, Math.max(45000, Math.round(30000 + mb * 30000)));
+  const upMsg = 'Cloudinary upload timeout (' + Math.round(upMs / 1000) + ' second)';
+  const abortedErr = () => { const ab = new Error('Upload canceled'); ab.name = 'AbortError'; return ab; };
+  const isAbort = (e) => !!(e && (e.name === 'AbortError' || (signal && signal.aborted)));
+
+  // Ek attempt. Timeout par fetch ko ROK bhi dete hain (purane code me sirf promise
+  // reject hota tha — upload chup-chaap chalta rehta aur Cloudinary par bina URL wali
+  // adhoori file ban kar reh jaati thi). User cancel kar to outer signal se bhi rukta hai.
+  const post = () => {
+    const ctrl = new AbortController();
+    const onOuterAbort = () => ctrl.abort();
+    if (signal) {
+      if (signal.aborted) ctrl.abort();
+      else if (signal.addEventListener) signal.addEventListener('abort', onOuterAbort, { once: true });
+    }
+    let timer = null;
+    const timeout = new Promise((_, rej) => {
+      // Reject pehle, abort baad me — taaki race me timeout ka message hi upar rahe
+      timer = setTimeout(() => { rej(new Error(upMsg)); ctrl.abort(); }, upMs);
+    });
+    const req = fetch(endpoint, { method: 'POST', body: fd, signal: ctrl.signal });
+    return Promise.race([req, timeout]).finally(() => {
+      clearTimeout(timer);
+      if (signal && signal.removeEventListener) signal.removeEventListener('abort', onOuterAbort);
+    });
+  };
+
   let res;
   try {
-    res = await withTimeout(fetch(endpoint, { method: 'POST', body: fd, signal: signal }), 45000, 'Cloudinary upload timeout (45 second)');
+    res = await post();
   } catch (e) {
-    // User ne Cancel dabaya → upload abort. Ye "upload fail" nahi, apne aap me rukna hai.
-    if (e && (e.name === 'AbortError' || (signal && signal.aborted))) {
-      const ab = new Error('Upload canceled');
-      ab.name = 'AbortError';
-      throw ab;
+    if (isAbort(e)) throw abortedErr();      // user ne Cancel dabaya — fail mat dikhao
+    // Ek baar dobara try — mobile network ka ek-time hiccup aam hai.
+    // (Timeout par dobara nahi, warna user ko double intezaar karna padta.)
+    if (!/timeout/i.test(String(e && e.message))) {
+      try { res = await post(); }
+      catch (e2) { throw isAbort(e2) ? abortedErr() : new Error('Cloudinary: ' + ((e2 && e2.message) ? e2.message : 'network error')); }
+    } else {
+      throw new Error('Cloudinary: ' + (e && e.message ? e.message : 'network error'));
     }
-    throw new Error('Cloudinary: ' + ((e && e.message) ? e.message : 'network error'));
   }
   let data = null;
   try { data = await res.json(); } catch (e) { data = null; }
@@ -2765,11 +2801,12 @@ function attachBillPhoto(type, mode, btn) {
   }
 }
 
-// Native camera se aayi photo ki resolution waisi ki waisi rakhi jati hai —
-// koi resize/compress nahi. Camera jo bhi quality de (12/50/108MP), wahi app me
-// preview aur Cloudinary upload dono me jaati hai. Agar file bohot badi ho to
-// Cloudinary apni size limit par reject karta hai — wo case cloudUploadError ke
-// clear message se handle hota hai (bill baaki data ke saath save rehta hai).
+// Native camera se aayi photo PEHLE compress kar li jati hai (max 1600px, JPEG 0.8).
+// Wajah: 12-100MP camera ki photo 5-15 MB ki hoti hai — wo bina resize Cloudinary par
+// jaati thi to upload timeout ho jata tha (aur free plan par size limit bhi lagti hai).
+// Compress karne se file ~10 guna chhoti ho jati hai (≈200-400 KB), upload 2-5 sec me
+// ho jata hai. Preview/bill dono me 1600px kaafi hai (photo kabhi 100% zoom nahi hoti).
+// Agar compress bhi fail ho jaye to original dataUrl hi chala jata hai (fallback).
 function handlePhotoSelect(ev) {
   const btn = currentPhotoBusyBtn;
   currentPhotoBusyBtn = null;
@@ -2783,9 +2820,12 @@ function handlePhotoSelect(ev) {
   const reader = new FileReader();
   reader.onload = (e) => {
     Promise.resolve(e.target.result)
-      .then((dataUrl) => {
+      .then(async (dataUrl) => {
         if (!row || row.children.length >= 5) return;
-        addPhotoThumb(row, dataUrl, row.children.length);
+        // Upload se pehle resize/compress — warna badi photo par Cloudinary timeout
+        const small = await compressImage(dataUrl, 1600, 0.8);
+        if (!row || row.children.length >= 5) return;
+        addPhotoThumb(row, small, row.children.length);
       })
       .finally(() => setBusy(btn, false));
   };
@@ -3294,6 +3334,11 @@ function cloudErrorText(e) {
   const raw = (e && e.message) ? String(e.message) : 'unknown error';
   const code = (e && e.code) ? String(e.code) : '';
   const s = (code + ' ' + raw).toLowerCase();
+  // Apna upload timeout — user ko kya karna hai wo saaf batao (Cloudinary ki raw
+  // line se usse kuch samajh nahi aata)
+  if (s.includes('upload timeout')) {
+    return 'Cloudinary upload timeout — network slow tha. Photo compress ho chuki hai (chhoti file), isliye dobara Save dabao: is baar 5-10 second me chadh jayegi.';
+  }
   // Cloudinary ke errors pehle se saaf bhasha me likhe hote hain (cloudinaryUploadError) —
   // unhe dobara mat badlo
   if (s.includes('cloudinary')) return raw;
