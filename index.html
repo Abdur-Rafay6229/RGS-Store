@@ -513,7 +513,7 @@
 </div>
 
 <!-- hidden file inputs for photo pickers -->
-<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="camInput" accept="image/*,video/*" capture="environment" class="hidden">
 <input type="file" id="galInput" accept="image/*" class="hidden">
 
 <!-- FIREBASE SDK (Auth + Firestore) — photo storage sirf Cloudinary hai -->
@@ -2460,7 +2460,7 @@ async function deleteCloudinaryPhoto(url) {
 // Photo upload → SIRF Cloudinary. Sign-in nahi to seedha error (fallback bilkul nahi).
 async function uploadPhoto(dataUrl) {
   if (!isCloudinaryOn()) throw new Error(cloudinaryNotSignedInReason());
-  const payload = await compressImage(dataUrl);
+  const payload = dataUrl;
   return uploadToCloudinary(payload);
 }
 
@@ -2744,10 +2744,11 @@ function attachBillPhoto(type, mode, btn) {
   }
 }
 
-// Native camera se aayi photo → turant chhoti (max 1600px) JPEG bana do.
-// Native camera 50/64/108MP deta hai — raw file 20-50MB hoti hai; bina resize kiye
-// data URL banne se app freeze / storage overflow hota tha. Isliye yahin resize,
-// baad me Cloudinary upload wahi chalta rahega.
+// Native camera se aayi photo ki resolution waisi ki waisi rakhi jati hai —
+// koi resize/compress nahi. Camera jo bhi quality de (12/50/108MP), wahi app me
+// preview aur Cloudinary upload dono me jaati hai. Agar file bohot badi ho to
+// Cloudinary apni size limit par reject karta hai — wo case cloudUploadError ke
+// clear message se handle hota hai (bill baaki data ke saath save rehta hai).
 function handlePhotoSelect(ev) {
   const btn = currentPhotoBusyBtn;
   currentPhotoBusyBtn = null;
@@ -2760,7 +2761,7 @@ function handlePhotoSelect(ev) {
   setBusy(btn, true, 'Photo load...');
   const reader = new FileReader();
   reader.onload = (e) => {
-    compressImage(e.target.result)
+    Promise.resolve(e.target.result)
       .then((dataUrl) => {
         if (!row || row.children.length >= 5) return;
         addPhotoThumb(row, dataUrl, row.children.length);
