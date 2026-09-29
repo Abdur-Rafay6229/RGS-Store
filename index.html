@@ -152,6 +152,30 @@
   .role-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold; color:#fff; background:#5f6368; }
   .role-pill.admin { background:#7b1fa2; }
   .cl-hint { margin-top:8px; font-size:11px; color:#888; text-align:left; line-height:1.45; }
+
+  /* ===== OCR (Bill photo → text → items) ===== */
+  .ocr-btn { background:#7b1fa2; }
+  .ocr-modal { position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,.6);
+    -webkit-backdrop-filter:blur(1.5px); backdrop-filter:blur(1.5px);
+    display:flex; align-items:flex-end; justify-content:center; }
+  .ocr-sheet { background:#fff; width:100%; max-width:600px; max-height:92vh; overflow-y:auto;
+    border-radius:14px 14px 0 0; padding:14px 14px calc(18px + env(safe-area-inset-bottom)); }
+  .ocr-top { display:flex; align-items:flex-start; gap:8px; margin-bottom:10px; }
+  .ocr-top b { font-size:16px; color:#7b1fa2; }
+  .ocr-msg { font-size:11px; color:#666; margin-top:3px; line-height:1.4; }
+  .ocr-chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .lang-chip { border:1px solid #ddd; background:#fff; border-radius:14px; padding:6px 11px;
+    font-size:12px; cursor:pointer; color:#444; }
+  .lang-chip.active { background:#7b1fa2; color:#fff; border-color:#7b1fa2; }
+  .ocr-row { display:flex; gap:5px; align-items:center; margin-bottom:6px; }
+  .ocr-row input { font-size:13px; padding:8px; }
+  .ocr-row .o-name { flex:3; } .ocr-row .o-qty { flex:1; } .ocr-row .o-rate { flex:2; }
+  .ocr-row .o-amt { flex:0 0 54px; font-size:11px; color:#666; text-align:right; }
+  #ocrRawBox { background:#f5f5f5; border-radius:8px; padding:8px; margin-bottom:10px; max-height:170px; overflow:auto; }
+  #ocrRawBox pre { font-size:11px; white-space:pre-wrap; word-break:break-word; margin:0; }
+  .ocr-box { background:#f3e5f5; border-radius:8px; padding:9px 10px; margin:10px 0;
+    font-size:13px; display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .ocr-box b { color:#7b1fa2; }
 </style>
 </head>
 <body>
@@ -245,6 +269,11 @@
     <button type="button" class="btn small green" onclick="attachBillPhoto('customer','camera',this)">📷 Camera</button>
     <button type="button" class="btn small" onclick="attachBillPhoto('customer','gallery',this)">🖼 Gallery</button>
   </div>
+  <div class="photo-btns" style="margin-top:6px">
+    <button type="button" class="btn small ocr-btn" onclick="startOCR('customer','camera',this)">🔍 Scan Bill (OCR)</button>
+    <button type="button" class="btn small ocr-btn" onclick="startOCR('customer','gallery',this)">🖼 Scan Photo</button>
+  </div>
+  <p class="cl-hint" style="margin-top:6px">OCR bill ki photo padh kar naam, date aur items khud bhar deta hai. Aap check karke theek kar sakte ho.</p>
   <div class="photo-row" id="customerPhotoRow"></div>
 
   <label id="t-items">Items (Name | Qty | Rate)</label>
@@ -344,6 +373,11 @@
     <button type="button" class="btn small green" onclick="attachBillPhoto('supplier','camera',this)">📷 Camera</button>
     <button type="button" class="btn small" onclick="attachBillPhoto('supplier','gallery',this)">🖼 Gallery</button>
   </div>
+  <div class="photo-btns" style="margin-top:6px">
+    <button type="button" class="btn small ocr-btn" onclick="startOCR('supplier','camera',this)">🔍 Scan Bill (OCR)</button>
+    <button type="button" class="btn small ocr-btn" onclick="startOCR('supplier','gallery',this)">🖼 Scan Photo</button>
+  </div>
+  <p class="cl-hint" style="margin-top:6px">OCR supplier bill ki photo se products, order no. aur total khud bhar deta hai — phir check karke theek karo.</p>
   <div class="photo-row" id="supplierPhotoRow"></div>
 
   <label style="margin-top:12px;font-weight:bold">Products</label>
@@ -516,13 +550,41 @@
 <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
 <input type="file" id="galInput" accept="image/*" class="hidden">
 
+<!-- hidden file inputs for OCR scan (alag — OCR ke liye Cloudinary sign-in zaroori nahi) -->
+<input type="file" id="ocrCamInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="ocrGalInput" accept="image/*" class="hidden">
+
+<!-- OCR REVIEW SHEET — scan ke baad yahan mila, user theek karke "Fill in Bill" dabaye -->
+<div id="ocrModal" class="ocr-modal hidden">
+  <div class="ocr-sheet">
+    <div class="ocr-top">
+      <div style="flex:1;min-width:0">
+        <b>🔍 OCR Result</b>
+        <div class="ocr-msg" id="ocrMsg">—</div>
+      </div>
+      <button type="button" class="btn tiny gray" onclick="closeOCR()">✕ Close</button>
+    </div>
+    <div class="ocr-chips">
+      <button type="button" class="lang-chip" id="ocrChipEng" onclick="setOCRLang('eng')">English</button>
+      <button type="button" class="lang-chip" id="ocrChipUrd" onclick="setOCRLang('eng+urd')">English + اردو</button>
+      <button type="button" class="lang-chip" onclick="toggleOCRRaw()">📄 Raw text</button>
+    </div>
+    <div id="ocrRawBox" class="hidden"><pre id="ocrRawText"></pre></div>
+    <div id="ocrItems"></div>
+    <button type="button" class="btn small gray" onclick="addOCRRow()">+ Add Row</button>
+    <div class="ocr-box"><span>Items ka total</span><span>Rs. <b id="ocrSum">0</b></span></div>
+    <div class="ocr-box" id="ocrTotalBox" style="background:#e8f0fe"><span>Bill ka total (photo se)</span><span>Rs. <b id="ocrDetected">0</b></span></div>
+    <button type="button" class="btn" id="ocrApplyBtn" onclick="applyOCR()">✓ <span id="t-ocrfill">Fill in Bill</span></button>
+  </div>
+</div>
+
 <!-- FIREBASE SDK (Auth + Firestore) — photo storage sirf Cloudinary hai -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-  const APP_VERSION = 'v1.3.2';
+  const APP_VERSION = 'v1.4.0';
 const firebaseConfig = {
   apiKey: "AIzaSyBS1kNJWHUwD4BmxqYR_CF3WqFwEPlHqK8",
   authDomain: "rgs-store-99c55.firebaseapp.com",
@@ -3992,6 +4054,549 @@ function isBusy(btn) { return !!(btn && btn.dataset.busy === '1'); }
 // Button ka apna default label yaad rakho (taaki busy hata sakte waqt wahi wapas aaye)
 function rememberLabel(btn) { if (btn && btn.dataset.baseLabel === undefined) btn.dataset.baseLabel = btn.innerHTML; }
 
+/* ============ OCR: BILL PHOTO → TEXT → ITEMS ============
+   Tesseract.js (CDN) se lazy-load hota hai — sirf jab user pehli baar "Scan Bill"
+   dabata hai. Pehli baar me engine + wasm + language data (~8 MB) download hota
+   hai; uske baad Tesseract apna IndexedDB cache use karta hai, isliye dobara scan
+   seconds me ho jata hai. Urdu chip on karne par +1 MB.
+   Cloudinary ki zaroorat NAHI — scan sirf padhta hai, photo kahin save nahi hoti.
+   Vendor bill items "2 150" ya "5 x 120 600" jaisi lines se nikaalte hain; total
+   aur date/alag se. Sab kuch user ko review sheet me dikhta hai — kuch bhi
+   bina check hue seedha bill me nahi jaata. */
+const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+const OCR_LANG_KEY = 'rgs_ocr_lang';
+const OCR_MAX_ROWS = 60;
+
+let tessScriptPromise = null;   // CDN script load (ek hi baar)
+let tessWorker = null;          // Tesseract worker (language change par terminate hota hai)
+let tessWorkerLang = '';
+let ocrTarget = 'customer';     // 'customer' | 'supplier'
+let ocrRows = [];               // [{ name, qty, rate, amount }]
+let ocrDetectedTotal = 0;
+let ocrDetected = { name: '', date: '', orderNo: '' };
+let ocrBusyBtn = null;
+
+// Tesseract status → user ko samajh aane wala message
+const TESS_STATUS = {
+  'loading tesseract core':   'OCR engine aa raha hai',
+  'initializing tesseract':   'Engine set ho raha hai',
+  'loading language traineddata': 'Language data aa raha hai',
+  'loaded language traineddata':  'Language data load hua',
+  'initializing api':         'Engine ready ho raha hai',
+  'recognizing text':         'Photo padhi ja rahi hai'
+};
+
+function getOCRLang() {
+  let v = '';
+  try { v = localStorage.getItem(OCR_LANG_KEY) || ''; } catch (e) {}
+  return v === 'eng+urd' ? 'eng+urd' : 'eng';
+}
+function setOCRLangPref(v) {
+  try { localStorage.setItem(OCR_LANG_KEY, v); } catch (e) {}
+}
+// Worker ek hi language se banta hai — switch karne par purana terminate
+function dropTessWorker() {
+  if (!tessWorker) return;
+  const w = tessWorker;
+  tessWorker = null; tessWorkerLang = '';
+  try { w.terminate(); } catch (e) {}
+}
+function setOCRLang(lang) {
+  setOCRLangPref(lang);
+  dropTessWorker();
+  renderOCRChips();
+  const msg = document.getElementById('ocrMsg');
+  if (msg && ocrRows.length) msg.textContent = 'Language set: ' + (lang === 'eng+urd' ? 'English + Urdu' : 'English') + ' — agli scan par lagega.';
+}
+function renderOCRChips() {
+  const lang = getOCRLang();
+  const eng = document.getElementById('ocrChipEng');
+  const urd = document.getElementById('ocrChipUrd');
+  if (eng) eng.classList.toggle('active', lang === 'eng');
+  if (urd) urd.classList.toggle('active', lang === 'eng+urd');
+}
+function toggleOCRRaw() {
+  const b = document.getElementById('ocrRawBox');
+  if (b) b.classList.toggle('hidden');
+}
+
+// ---- CDN script (ek hi baar load) ----
+function loadTesseractScript() {
+  if (window.Tesseract) return Promise.resolve(true);
+  if (tessScriptPromise) return tessScriptPromise;
+  tessScriptPromise = new Promise((resolve) => {
+    try {
+      const s = document.createElement('script');
+      s.src = TESSERACT_CDN;
+      s.async = true;
+      s.onload = () => resolve(!!window.Tesseract);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    } catch (e) { resolve(false); }
+  }).then((ok) => { if (!ok) tessScriptPromise = null; return ok; });
+  return tessScriptPromise;
+}
+
+async function getTessWorker(onProgress) {
+  const lang = getOCRLang();
+  if (tessWorker && tessWorkerLang === lang) return tessWorker;
+  dropTessWorker();
+
+  const ok = await loadTesseractScript();
+  if (!ok || !window.Tesseract) {
+    throw new Error('OCR engine load nahi hua. Internet connection check karo (pehli baar me ~8 MB download hota hai).');
+  }
+  tessWorker = await window.Tesseract.createWorker(lang, 1, {
+    logger: (m) => {
+      if (!onProgress || !m || !m.status) return;
+      const label = TESS_STATUS[m.status] || m.status;
+      const pct = typeof m.progress === 'number' ? ' ' + Math.round(m.progress * 100) + '%' : '';
+      onProgress(label + pct);
+    }
+  });
+  tessWorkerLang = lang;
+  return tessWorker;
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('Photo padhi nahi ja saki.'));
+    r.readAsDataURL(file);
+  });
+}
+
+/* ---- Bill photo ke liye camera/gallery kholo ---- */
+function startOCR(type, mode, btn) {
+  ocrTarget = type === 'supplier' ? 'supplier' : 'customer';
+  if (isBusy(btn)) return;
+  ocrBusyBtn = btn || null;
+  const inp = mode === 'camera' ? document.getElementById('ocrCamInput') : document.getElementById('ocrGalInput');
+  if (!inp) { ocrBusyBtn = null; return; }
+  inp.value = '';
+  inp.onchange = (ev) => handleOCRSelect(ev);
+  try {
+    inp.click();
+  } catch (e) {
+    ocrBusyBtn = null;
+    alert('❌ Camera / Gallery open nahi ho paya.\n\nIs app ko browser me chala kar dobara try karein.');
+  }
+}
+
+async function handleOCRSelect(ev) {
+  const btn = ocrBusyBtn;
+  ocrBusyBtn = null;
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) { if (btn) setBusy(btn, false); return; }            // user ne picker cancel kiya
+  if (f.type && !f.type.startsWith('image/')) { alert('Sirf image file select karo.'); return; }
+  if (btn) setBusy(btn, true, 'Scan...');
+
+  try {
+    let dataUrl;
+    try { dataUrl = await readFileAsDataURL(f); }
+    catch (e) { alert('❌ ' + (e && e.message ? e.message : 'Photo padhne me dikkat aayi.')); return; }
+
+    // OCR ke liye photo par resize — 1800px tak. Chhota/clean image = behtar accuracy,
+    // aur Tesseract par halki photo jaldi process hoti hai.
+    const img = await compressImage(dataUrl, 1800, 0.9);
+    if (loadingUserCancelled) return;
+
+    showLoading('OCR chal raha hai...', 180000, {
+      cancelable: true,
+      sub: 'Pehli baar me engine download hota hai (~8 MB)'
+    });
+    let text = null, failure = '';
+    try {
+      const worker = await getTessWorker((p) => setLoadingSub(p));
+      if (loadingUserCancelled) { dropTessWorker(); return; }
+      const res = await worker.recognize(img);
+      // Cancel dabne ke baad chal raha scan — worker hata do taaki agli scan
+      // uske peeche na ghoomti (queue bhi khud se saaf hoti hai)
+      if (loadingUserCancelled) { dropTessWorker(); return; }
+      text = (res && res.data && res.data.text) ? String(res.data.text) : '';
+    } catch (e) {
+      console.warn('OCR failed:', e);
+      failure = (e && e.message) ? e.message : 'OCR fail ho gaya.';
+    } finally { hideLoading(); }
+    if (failure) { alert('❌ ' + failure); return; }
+
+    openOCRReview(text);
+  } catch (e) {
+    console.warn('OCR scan error:', e);
+    alert('❌ Scan nahi ho paya: ' + (e && e.message ? e.message : 'unknown error'));
+  } finally {
+    if (btn) setBusy(btn, false);
+  }
+}
+
+/* ---------- PARSER: OCR text → { items, total, name, date, orderNo } ---------- */
+// Total / discount / header lines — inme se item nahi banna chahiye
+const OCR_SKIP_RE = /(sub\s*-?\s*total|grand\s*total|net\s*total|total|amount|discount|disc\b|tax\b|gst|vat|paid|due|balance|round\s*off|cash\s*memo|change|page|invoice|invoice\s*no|inv\s*no|bill\s*no|date\b|phone|tel\b|mobile|www\.|gstin|strn|ntn|stn|thank|welcome|received|customer\s*name|supplier\s*name|vendor|address|\bph\b|cashier|receipt|computer|printed|terms|condition|licen|weight)/i;
+const OCR_NAME_SKIP_RE = /(invoice|total|qty|rate\b|amount|bill\b|date|phone|tel|mobile|www|gstin|strn|ntn|cashier|dear|welcome|thank|ph\b|address|ltd|store|mart|market|road|st\.|near|opposite|account)/i;
+const OCR_NUM_RE = /(\d[\d,]*(?:\.\d{1,2})?)/g;
+
+function ocrNum(raw) {
+  const n = Number(String(raw).replace(/,/g, ''));
+  return isFinite(n) ? n : 0;
+}
+// Item ka naam: number se pehle ka text, saaf-saaf
+function ocrCleanName(s) {
+  return String(s || '')
+    .replace(/[|_~^°•·]+/g, ' ')
+    .replace(/^[^A-Za-z\u0600-\u06FF]+/, '')
+    .replace(/[^A-Za-z\u0600-\u06FF\s.\-\/&']+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function ocrHasLetters(s) { return /[A-Za-z\u0600-\u06FF]{2,}/.test(String(s || '')); }
+
+function ocrParseItems(text) {
+  const out = [];
+  const seen = new Set();
+  const lines = String(text || '').split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+/g, ' ').trim();
+    if (line.length < 3) continue;
+    if (OCR_SKIP_RE.test(line)) continue;
+
+    const nums = [];
+    let bad = false;
+    OCR_NUM_RE.lastIndex = 0;
+    let m;
+    while ((m = OCR_NUM_RE.exec(line)) !== null) {
+      const digits = m[1].replace(/[^\d]/g, '');
+      if (digits.length > 7) { bad = true; break; }   // date / phone / invoice no → poori line chhodo
+      nums.push({ v: ocrNum(m[1]), start: m.index });
+    }
+    if (bad) continue;
+    if (nums.length < 2 || nums.length > 3) continue;   // 1 number = header, 4+ = column-heavy noise
+
+    const name = ocrCleanName(line.slice(0, nums[0].start));
+    if (!ocrHasLetters(name)) continue;
+    // "Ph: 055-1234567" / "Address: House 22" — colon wala label line item nahi hai
+    if (name.indexOf(':') >= 0) continue;
+
+    // Qty ke baad likha unit ("Chini 5kg 150 750" → "kg") naam me se gir jata tha.
+    // Use naam ke saath jodein taaki supplier form ka Unit Type bhar ja sake.
+    let fullName = name;
+    if (nums.length >= 2) {
+      const between = line.slice(nums[0].start + String(nums[0].v).length, nums[1].start);
+      const unit = ocrGuessUnit(between);
+      if (unit && fullName.toLowerCase().indexOf(unit) === -1) fullName = name + ' ' + unit;
+    }
+
+    const qty = nums[0].v;
+    const rate = nums[1].v;
+    const amount = nums.length === 3 ? nums[2].v : Math.round(qty * rate * 100) / 100;
+    if (!(qty > 0) || !(rate > 0) || !(amount > 0)) continue;
+    if (qty > 100000 || rate > 100000000) continue;
+
+    // "2 x 150" / "5@120" jaisa marker ho to amount qty*rate se match hona chahiye;
+    // 3 numbers wale case me bhi tala lagana (galat columns na ghus aayein)
+    if (nums.length === 3 && amount > 0) {
+      const calc = Math.round(qty * rate * 100) / 100;
+      if (calc > 0 && Math.abs(calc - amount) / amount > 0.35) continue;
+    }
+    const key = fullName.toLowerCase() + '|' + qty + '|' + rate;
+    if (seen.has(key)) continue;    // OCR aksar same line do baar deta hai
+    seen.add(key);
+    out.push({ name: fullName, qty, rate, amount });
+    if (out.length >= OCR_MAX_ROWS) break;
+  }
+  return out;
+}
+
+// Total: "Grand/Total Amount" wali line se. Amount wale number me se sabse bada.
+function ocrFindTotal(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  function scanFrom(re) {
+    let best = 0;
+    for (const l of lines) {
+      if (!re.test(l)) continue;
+      OCR_NUM_RE.lastIndex = 0;
+      let m;
+      while ((m = OCR_NUM_RE.exec(l)) !== null) {
+        if (m[1].replace(/[^\d]/g, '').length > 7) continue;
+        const v = ocrNum(m[1]);
+        if (v > best) best = v;
+      }
+    }
+    return best;
+  }
+  // "Grand/Net/Total Amount" wali line pehle — "Sub Total 500, Total Amount 480"
+  // me 480 hi chahiye (sabse bada number total nahi, sahi line ka number total hai)
+  const grand = scanFrom(/(grand\s*total|net\s*total|total\s*amount|total\s*payable|amount\s*(payable|due))/i);
+  if (grand > 0) return grand;
+  return scanFrom(/(sub\s*-?\s*total|total\s*amount|^total\b|total)/i);
+}
+
+function ocrMkDate(y, mo, d) {
+  let yy = Number(y), mm = Number(mo), dd = Number(d);
+  if (yy < 100) yy += 2000;
+  if (!(yy >= 1970 && yy <= 2100)) return '';
+  if (!(mm >= 1 && mm <= 12)) return '';
+  if (!(dd >= 1 && dd <= 31)) return '';
+  const s = yy + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+  return isValidDateStr(s) ? s : '';
+}
+function ocrFindDate(text) {
+  const t = String(text || '');
+  let m = t.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/);
+  if (m) { const d = ocrMkDate(m[1], m[2], m[3]); if (d) return d; }
+  m = t.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})\b/);
+  if (m) { const d = ocrMkDate(m[3], m[2], m[1]); if (d) return d; }   // dd/mm/yyyy (PK me yahi chalta hai)
+  const mon = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12 };
+  m = t.match(/\b(\d{1,2})[-\s](jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[-\s](\d{2,4})\b/i);
+  if (m) { const d = ocrMkDate(m[3], mon[m[2].toLowerCase()], m[1]); if (d) return d; }
+  return '';
+}
+function ocrFindName(text) {
+  const lines = String(text || '').split(/\r?\n/)
+    .map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  for (const l of lines.slice(0, 8)) {          // sirf bill ke upar ka hissa
+    if (l.length < 3 || l.length > 45) continue;
+    if (OCR_NAME_SKIP_RE.test(l)) continue;
+    // Koi bhi digit ho to title-line nahi hai — warna item line ("Sugar 5 120 600")
+    // naam ban jati hai
+    if (/\d/.test(l)) continue;
+    const name = ocrCleanName(l);
+    if (name.length < 3 || name.length > 40) continue;
+    if (!ocrHasLetters(name)) continue;
+    return name;
+  }
+  return '';
+}
+function ocrFindOrderNo(text) {
+  // "#A-991" jaisa prefix bhi aa sakta hai — isliye # capture se pehle aur capture me
+  const m = String(text || '').match(
+    /\b(?:order|invoice|inv|bill|ref)\s*\.?\s*(?:no\.?|number|#)?\s*[:\-]?\s*#?\s*([A-Za-z0-9][A-Za-z0-9\/\-]{2,19})/i
+  );
+  if (!m) return '';
+  const v = m[1].replace(/[^A-Za-z0-9\/\-]/g, '');
+  // Order no me kam se kam 1 digit hona chahiye — warna "No"/"Number" jaisa label pakad liya
+  return (v.length >= 3 && /\d/.test(v)) ? v : '';
+}
+function ocrParseAll(text) {
+  return {
+    items: ocrParseItems(text),
+    total: ocrFindTotal(text),
+    date: ocrFindDate(text),
+    name: ocrFindName(text),
+    orderNo: ocrFindOrderNo(text)
+  };
+}
+
+/* ---------- REVIEW SHEET (user yahan check / theek karta hai) ---------- */
+function openOCRReview(text) {
+  const p = ocrParseAll(text);
+  ocrRows = p.items;
+  ocrDetectedTotal = p.total;
+  ocrDetected = { name: p.name, date: p.date, orderNo: p.orderNo };
+
+  const raw = document.getElementById('ocrRawText');
+  if (raw) raw.textContent = (text && text.trim()) ? text : '(koi text nahi mila)';
+  renderOCRChips();
+
+  const bits = [];
+  if (p.items.length) bits.push(p.items.length + ' item mila');
+  if (p.total > 0) bits.push('total Rs. ' + formatMoney(p.total));
+  if (p.date) bits.push('date ' + p.date);
+  if (p.name) bits.push('naam "' + p.name + '"');
+  const msg = document.getElementById('ocrMsg');
+  if (msg) {
+    msg.textContent = bits.length
+      ? bits.join(' • ') + ' — check karo, phir Fill in Bill dabao.'
+      : 'Kuch padha nahi ja paya. Photo clear, seedhi aur poori ho to dobara scan karo, ya "Add Row" se khud daalo.';
+  }
+  const dBox = document.getElementById('ocrTotalBox');
+  if (dBox) dBox.classList.toggle('hidden', !(p.total > 0));
+  const dEl = document.getElementById('ocrDetected');
+  if (dEl) dEl.textContent = formatMoney(p.total);
+
+  renderOCRRows();
+  const ov = document.getElementById('ocrModal');
+  if (ov) { ov.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+}
+function closeOCR() {
+  const ov = document.getElementById('ocrModal');
+  if (ov) ov.classList.add('hidden');
+  document.body.style.overflow = '';
+  ocrRows = [];
+  ocrDetectedTotal = 0;
+  ocrDetected = { name: '', date: '', orderNo: '' };
+}
+function renderOCRRows() {
+  const box = document.getElementById('ocrItems');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!ocrRows.length) {
+    box.innerHTML = '<div class="card" style="cursor:default">Koi item nahi mila. Raw text dekh lo, ya "Add Row" se khud daalo.</div>';
+    updateOCRSum();
+    return;
+  }
+  ocrRows.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'ocr-row';
+    row.innerHTML =
+      '<input type="text" class="o-name" placeholder="Item" value="' + escapeHtml(r.name) + '" oninput="updateOCRSum()">' +
+      '<input type="number" class="o-qty" min="0" step="any" placeholder="Qty" value="' + escapeHtml(r.qty) + '" oninput="updateOCRSum()">' +
+      '<input type="number" class="o-rate" min="0" step="any" placeholder="Rate" value="' + escapeHtml(r.rate) + '" oninput="updateOCRSum()">' +
+      '<span class="o-amt"></span>' +
+      '<button type="button" class="btn red tiny" onclick="removeOCRRow(' + i + ')">✕</button>';
+    box.appendChild(row);
+  });
+  updateOCRSum();
+}
+function updateOCRSum() {
+  let sum = 0;
+  const rows = document.querySelectorAll('#ocrItems .ocr-row');
+  rows.forEach((row) => {
+    const q = toNumber(row.querySelector('.o-qty').value);
+    const r = toNumber(row.querySelector('.o-rate').value);
+    const t = Math.round(q * r * 100) / 100;
+    const el = row.querySelector('.o-amt');
+    if (el) el.textContent = t > 0 ? formatMoney(t) : '—';
+    sum += t;
+  });
+  const el = document.getElementById('ocrSum');
+  if (el) el.textContent = formatMoney(Math.round(sum * 100) / 100);
+}
+// User ne input me kuch theek kiya ho to wo turant UI se wapas uthana zaroori hai —
+// warna "Add Row" ya "Remove" par rows dobara render karne se uska kaam gum ho jata tha
+function syncOCRRowsFromUI() {
+  const uiRows = Array.from(document.querySelectorAll('#ocrItems .ocr-row'));
+  if (!uiRows.length) return;                     // empty state — kuch nahi bana
+  ocrRows = uiRows.map((row) => {
+    const qty = row.querySelector('.o-qty').value;
+    const rate = row.querySelector('.o-rate').value;
+    return {
+      name: (row.querySelector('.o-name').value || '').trim(),
+      qty, rate,
+      amount: Math.round(toNumber(qty) * toNumber(rate) * 100) / 100
+    };
+  });
+}
+function addOCRRow() {
+  syncOCRRowsFromUI();
+  ocrRows.push({ name: '', qty: '', rate: '', amount: 0 });
+  renderOCRRows();
+  const rows = document.querySelectorAll('#ocrItems .ocr-row');
+  const last = rows[rows.length - 1];
+  if (last) { const i = last.querySelector('.o-name'); if (i) i.focus(); }
+}
+function removeOCRRow(idx) {
+  syncOCRRowsFromUI();
+  ocrRows.splice(idx, 1);
+  renderOCRRows();
+}
+function readOCRRowsFromUI() {
+  const rows = [];
+  document.querySelectorAll('#ocrItems .ocr-row').forEach((row) => {
+    const name = (row.querySelector('.o-name').value || '').trim();
+    const qty = toNumber(row.querySelector('.o-qty').value);
+    const rate = toNumber(row.querySelector('.o-rate').value);
+    if (name && qty > 0) rows.push({ name, qty, rate });
+  });
+  return rows;
+}
+// Item ke naam se unit type guess (supplier form cartons+units me chalta hai).
+// Bare "l" ya "kg" ko dhoondne ke liye boundary check zaroori — warna "Oil" me
+// 'l' aur "Salt" me 'l' se galat unit ban jayega.
+function ocrGuessUnit(name) {
+  const n = ' ' + String(name || '').toLowerCase() + ' ';
+  if (/(^|\s|\d)kgs?(\s|$)/.test(n) || n.indexOf('kilo') >= 0) return 'kg';
+  if (/(^|\s|\d)(l|ltr|lt|litre|liter)(\s|$)/.test(n)) return 'litre';
+  if (/(^|\s|\d)ml(\s|$)/.test(n)) return 'ml';
+  if (/(^|\s|\d)(g|gm|gms|gram|grams)(\s|$)/.test(n)) return 'gram';
+  if (/(^|\s|\d)doz(en)?(\s|$)/.test(n)) return 'dozen';
+  if (n.indexOf('bottle') >= 0) return 'bottle';
+  if (n.indexOf('packet') >= 0 || /(^|\s|\d)pkt(\s|$)/.test(n)) return 'packet';
+  if (/(^|\s|\d)box(es)?(\s|$)/.test(n)) return 'box';
+  if (/(^|\s|\d)bag(s)?(\s|$)/.test(n)) return 'bag';
+  return '';
+}
+
+/* ---------- APPLY: review sheet → form ---------- */
+// Form me sirf khaali (khud khud khuli hui) rows hain to confirm mat pucho —
+// naye bill par hamesha 1 khaali row hoti hai, prompt bekaar confuse karta hai
+function ocrFormHasData(kind) {
+  if (kind === 'supplier') {
+    return Array.from(document.querySelectorAll('#productsBox .product-card')).some((c) => {
+      return (c.querySelector('.p-name').value || '').trim() ||
+             toNumber(c.querySelector('.p-qc').value) || toNumber(c.querySelector('.p-rc').value) ||
+             toNumber(c.querySelector('.p-qu').value) || toNumber(c.querySelector('.p-ru').value) ||
+             (c.querySelector('.p-ut').value || '').trim();
+    });
+  }
+  return Array.from(document.querySelectorAll('#itemsBox .product-card')).some((c) => {
+    return (c.querySelector('.i-name').value || '').trim() ||
+           toNumber(c.querySelector('.i-qty').value) || toNumber(c.querySelector('.i-rate').value);
+  });
+}
+function applyOCR() {
+  const rows = readOCRRowsFromUI();
+  if (!rows.length) { alert('Kam se kam 1 item chahiye — naam aur Qty dono bharo.'); return; }
+
+  const btn = document.getElementById('ocrApplyBtn');
+  if (btn) setBusy(btn, true, 'Filling...');
+  let done = false;
+  try {
+    done = (ocrTarget === 'supplier') ? applyOCRToSupplier(rows) : applyOCRToCustomer(rows);
+    if (done) {
+      closeOCR();
+      alert(rows.length + ' item(s) bill me daal diye gaye. Ab check kar ke Save dabao.');
+    }
+  } finally {
+    if (btn) setBusy(btn, false);
+  }
+}
+
+// Naam sirf SUPPLIER form me bharta hai — customer bill ke upar shop ka naam hota hai,
+// customer ka nahi. Customer form me wo sirf review sheet ke message me dikhta hai.
+function applyOCRToCustomer(rows) {
+  const box = document.getElementById('itemsBox');
+  if (ocrFormHasData('customer') &&
+      !confirm('Form me jo items hain unhe hata kar OCR wale daal dein?')) return false;
+
+  const dateEl = document.getElementById('f-date');
+  if (ocrDetected.date && dateEl) dateEl.value = ocrDetected.date;
+
+  box.innerHTML = '';
+  rows.forEach(r => addItemRow(r));
+  if (!box.children.length) addItemRow();
+  calcTotal();
+  return true;
+}
+
+function applyOCRToSupplier(rows) {
+  if (ocrFormHasData('supplier') &&
+      !confirm('Form me jo products hain unhe hata kar OCR wale daal dein?')) return false;
+
+  const nameEl = document.getElementById('s-name');
+  if (ocrDetected.name && nameEl && !nameEl.value.trim()) {
+    nameEl.value = ocrDetected.name;
+    onSupplierNameChange();
+  }
+  const dateEl = document.getElementById('s-date');
+  if (ocrDetected.date && dateEl) dateEl.value = ocrDetected.date;
+  const delEl = document.getElementById('s-delivery');
+  if (ocrDetected.date && delEl && !delEl.value) delEl.value = ocrDetected.date;
+  const ordEl = document.getElementById('s-orderno');
+  if (ocrDetected.orderNo && ordEl && !ordEl.value.trim()) ordEl.value = ocrDetected.orderNo;
+
+  const box = document.getElementById('productsBox');
+  box.innerHTML = '';
+  rows.forEach(r => addProductRow({
+    name: r.name, qtyCartons: 0, rateCartons: 0,
+    qtyUnits: r.qty, rateUnits: r.rate, unitType: ocrGuessUnit(r.name)
+  }));
+  if (!box.children.length) addProductRow();
+  updateProductNumbers();
+  recalcProducts();
+  return true;
+}
+
 /* ============ PWA INSTALL ============ */
 let deferredPrompt = null;
 function showInstallBtn(show) {
@@ -4057,21 +4662,29 @@ window.addEventListener('popstate', () => {
     return;
   }
 
-  // 2) Login screen se back → sirf tab jab session pehle se ho (settings se aaye)
+  // 2) OCR review sheet khuli hai → pehle usko band karo (form waise hi bana rahe)
+  const ocrEl = document.getElementById('ocrModal');
+  if (ocrEl && !ocrEl.classList.contains('hidden')) {
+    closeOCR();
+    keepGuard();
+    return;
+  }
+
+  // 3) Login screen se back → sirf tab jab session pehle se ho (settings se aaye)
   if (screenVisible('loginScreen')) {
     keepGuard();
     if (fbAuth && fbAuth.currentUser) goBackFromLogin();
     return;
   }
 
-  // 3) Accounts (Admin) screen → wapas list
+  // 4) Accounts (Admin) screen → wapas list
   if (screenVisible('accountsScreen')) {
     showList();
     keepGuard();
     return;
   }
 
-  // 4) Lock / Setup screen par back app ko band na kare
+  // 5) Lock / Setup screen par back app ko band na kare
   if (screenVisible('lockScreen') || screenVisible('setupScreen')) {
     keepGuard();
     return;

@@ -1,4 +1,4 @@
-const CACHE = 'rgs-v21';
+const CACHE = 'rgs-v22';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 // Install event — app shell cache karo.
@@ -24,6 +24,14 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+
+  // Sirf apne hi files cache karo. CDN (jsdelivr — OCR engine + language data,
+  // ~8 MB) cache me daalne se app ka storage quota khatam ho jaata tha aur cache
+  // update bhi mushkil ho jaati thi. Ye files browser ke apne HTTP cache se
+  // handle hoti hain — isliye inhe bilkul chhod do.
+  let sameOrigin = true;
+  try { sameOrigin = new URL(req.url).origin === self.location.origin; } catch (err) { sameOrigin = false; }
+  if (!sameOrigin) return;
 
   // Pages (navigations) → network first: taaki naya update turant mile,
   // offline ho to cache se chale
