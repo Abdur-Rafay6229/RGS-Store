@@ -747,10 +747,9 @@ async function fetchAdminFlag(showMsg) {
     adminFlag = isConfiguredAdminEmail(user.email)
       && !!snap.exists && (snap.data() || {}).role !== 'user';
 
-    // Fix kiye hue admin email ne login kiya par marker abhi nahi hai → ek baar khud
-    // banao. Rules sirf isi email ko allow karte hain (email server-side token me aata
-    // hai), isliye koi doosra user ye claim nahi kar sakta.
-    if (!adminFlag && isConfiguredAdminEmail(user.email)) {
+    // Sirf tab banao jab marker abhi NAHI hai — warna kisi ne jaan-boojh kar
+    // role:'user' (demote) kiya ho to ye har login par overwrite kar deta.
+    if (!snap.exists && isConfiguredAdminEmail(user.email)) {
       try {
         await withTimeout(ref.set({
           role: 'admin',
@@ -1454,7 +1453,11 @@ async function collectPhotos(rowSelector) {
     alert('Photo canceled');
     return null;
   }
-  return { photos: out, failed, cancelled: loadingCancelled, uploaded, failReason };
+  // Note: user-cancel upar (loadingUserCancelled block) hi 'null' return kar
+  // chuka hai. Yahan loadingCancelled true ka matlab sirf safety-timer
+  // (auto-timeout) hai, user cancel NAHI — isliye 'cancelled' flag false
+  // rakha (warna alert me "aapne upload cancel kiya" galat dikhata).
+  return { photos: out, failed, cancelled: false, uploaded, failReason };
 }
 
 // Save Bill — button ke andar loading + double-tap protection.
@@ -3432,7 +3435,7 @@ function cloudErrorText(e) {
 }
 
 // 1x1 ka chhota JPEG — Storage permission check ke liye kaafi
-const CLOUD_PROBE_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCn/9k=';
+const CLOUD_PROBE_JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCn/9k=';
 
 // Cloudinary ka apna probe — runCloudCheck me shamil hota hai
 async function cloudinaryCheckLines() {
@@ -3798,13 +3801,15 @@ function unlockAndEnter() {
   deviceUnlocked = true;
   if (sessionBooted) { updateAdminBanner(); refreshChrome(); return; }   // pehle se boot — screen mat chedo
   sessionBooted = true;
+  const uidAtBoot = activeDataUid;   // boot ke waqt account badal gaya to complete mat karo
   bootPromise = (async () => {
     showLoading('Loading your account data...', 25000);
     try { await bootstrapAccountData(); }
     catch (e) { console.warn('Bootstrap failed:', e); }
+    if (activeDataUid !== uidAtBoot) return;   // bech me sign-out / account switch — naya flow screen sambhal lega
     hideLoading();
     refreshChrome();
-    showList();
+    afterLogin();   // Settings se Sign In karne par wapas Settings par jaye (loginReturnTo)
   })();
 }
 
@@ -3890,8 +3895,10 @@ async function openUserAccount(idx) {
   updateAdminBanner();
   refreshChrome();
 
+  const uidAtBoot = activeDataUid;   // p.uid — boot ke waqt change ho to abort
   showLoading('Loading ' + p.email + ' ...', 25000);
   try { await bootstrapAccountData(); } catch (e) { console.warn('Admin open failed:', e); }
+  if (activeDataUid !== uidAtBoot || !adminViewing) return;   // bech me exit / sign-out hua — uska flow sambhal lega
   hideLoading();
   sessionBooted = true;
   updateAdminBanner();
@@ -3916,8 +3923,10 @@ function exitImpersonation() {
   refreshChrome();
   if (!me) { showLoginScreen(false); return; }
   sessionBooted = true;
+  const uidAtBoot = activeDataUid;   // me — boot ke waqt change ho to abort
   showLoading('Loading your account...', 25000);
   Promise.resolve(bootstrapAccountData()).catch(e => console.warn(e)).then(() => {
+    if (activeDataUid !== uidAtBoot) return;   // bech me sign-out / account switch
     hideLoading();
     refreshChrome();
     showList();
@@ -4539,7 +4548,7 @@ function applyOCR() {
   if (!rows.length) { alert('Kam se kam 1 item chahiye — naam aur Qty dono bharo.'); return; }
 
   const btn = document.getElementById('ocrApplyBtn');
-  if (btn) setBusy(btn, true, 'Filling...');
+  if (btn && !setBusy(btn, true, 'Filling...')) return;   // duplicate click block
   let done = false;
   try {
     done = (ocrTarget === 'supplier') ? applyOCRToSupplier(rows) : applyOCRToCustomer(rows);
