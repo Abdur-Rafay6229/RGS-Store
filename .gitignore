@@ -1,0 +1,30 @@
+# Node modules (NEVER upload)
+node_modules/
+
+# Build outputs
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android Studio
+*.hprof
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystore (NEVER upload)
+*.jks
+*.keystore
+keystore.properties
+
+# Logs
+*.log
+npm-debug.log*

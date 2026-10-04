@@ -1,0 +1,34 @@
+{
+  "appId": "com.rgs.store",
+  "appName": "RGS Store",
+  "webDir": "www",
+  "backgroundColor": "#f0f2f5",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true
+  },
+  "ios": {
+    "contentInset": "never",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2500,
+      "launchAutoHide": true,
+      "backgroundColor": "#1a73e8",
+      "androidScaleType": "CENTER_CROP",
+      "iosSpinnerStyle": "large"
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#1a73e8"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    },
+    "Network": {
+      "wifiEnabled": true
+    }
+  }
+}

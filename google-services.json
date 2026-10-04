@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "955139680771",
+    "project_id": "rgs-store-99c55",
+    "storage_bucket": "rgs-store-99c55.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:955139680771:android:a5733301bb1cec436dfc36",
+        "android_client_info": {
+          "package_name": "com.rajpoot.generalstore"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "955139680771-qu3956o37c3gloskepj4of6t6cdhvoqu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBvrcDeVnAVUJiRC8nl-qu8BJIvcmHXlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "955139680771-qu3956o37c3gloskepj4of6t6cdhvoqu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
